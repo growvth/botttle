@@ -1,0 +1,9 @@
+// Prisma schema for botttle. Tables will be added in Phase 2.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

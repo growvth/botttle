@@ -1,0 +1,35 @@
+{
+  "name": "@botttle/config",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared ESLint, TypeScript, and Prettier config for botttle monorepo",
+  "exports": {
+    "./eslint": "./eslint.config.js",
+    "./typescript": "./tsconfig.base.json",
+    "./typescript/react": "./tsconfig.react.json",
+    "./prettier": "./prettier.config.mjs"
+  },
+  "files": [
+    "eslint.config.js",
+    "tsconfig.base.json",
+    "tsconfig.react.json",
+    "prettier.config.mjs"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.15.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": { "optional": true }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  }
+}

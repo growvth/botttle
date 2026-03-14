@@ -1,0 +1,24 @@
+{
+  "name": "@botttle/types",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared TypeScript types for botttle",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src --max-warnings 0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

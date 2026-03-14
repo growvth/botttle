@@ -1,0 +1,28 @@
+{
+  "name": "botttle",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=api",
+    "dev:web": "turbo run dev --filter=web-app",
+    "dev:marketing": "turbo run dev --filter=marketing",
+    "db:generate": "turbo run generate --filter=db",
+    "db:migrate": "turbo run migrate --filter=db",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "bun@1.1.0"
+}
