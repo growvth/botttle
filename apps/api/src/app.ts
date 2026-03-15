@@ -6,6 +6,9 @@ import { error, success } from './lib/response.js';
 import { HttpStatus, ErrorCode } from './lib/errors.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { clientRoutes } from './modules/clients/routes.js';
+import { milestoneNestedRoutes, milestoneRoutes } from './modules/milestones/routes.js';
+import { projectRoutes } from './modules/projects/routes.js';
+import { taskNestedRoutes, taskRoutes } from './modules/tasks/routes.js';
 import { userRoutes } from './modules/users/routes.js';
 
 export async function buildApp() {
@@ -41,6 +44,11 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(userRoutes, { prefix: '/api/users' });
   await app.register(clientRoutes, { prefix: '/api/clients' });
+  await app.register(projectRoutes, { prefix: '/api/projects' });
+  await app.register(milestoneNestedRoutes, { prefix: '/api/projects' });
+  await app.register(milestoneRoutes, { prefix: '/api/milestones' });
+  await app.register(taskNestedRoutes, { prefix: '/api/projects' });
+  await app.register(taskRoutes, { prefix: '/api/tasks' });
 
   return app;
 }

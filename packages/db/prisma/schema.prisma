@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -36,7 +36,74 @@ model Client {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users User[]
+  users    User[]
+  projects Project[]
 
   @@map("clients")
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  clientId    String        @map("client_id")
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status      ProjectStatus @default(DRAFT)
+  progress    Int           @default(0)
+  budget      Float?
+  startDate   DateTime?     @map("start_date")
+  endDate     DateTime?     @map("end_date")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  milestones Milestone[]
+
+  @@index([clientId])
+  @@map("projects")
+}
+
+model Milestone {
+  id                   String          @id @default(cuid())
+  projectId            String          @map("project_id")
+  project              Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                String
+  dueDate              DateTime?       @map("due_date")
+  status               MilestoneStatus @default(PENDING)
+  completionPercentage Int             @default(0) @map("completion_percentage")
+  description          String?
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  tasks Task[]
+
+  @@index([projectId])
+  @@map("milestones")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  milestoneId String   @map("milestone_id")
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      MilestoneStatus @default(PENDING)
+  dueDate     DateTime? @map("due_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([milestoneId])
+  @@map("tasks")
 }

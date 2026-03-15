@@ -88,13 +88,16 @@ export async function register(body: RegisterBody): Promise<
   if (existing) {
     return { ok: false, code: 'CONFLICT', message: 'Email already registered' };
   }
+  const userCount = await prisma.user.count();
+  const isFirstUser = userCount === 0;
   const passwordHash = await hashPassword(body.password);
+  const role = isFirstUser ? 'ADMIN' : (body.role ?? 'CLIENT');
   const user = await prisma.user.create({
     data: {
       email: body.email,
       passwordHash,
       name: body.name ?? null,
-      role: body.role ?? 'CLIENT',
+      role,
     },
   });
   const payload: TokenPayload = { sub: user.id, email: user.email, role: user.role };

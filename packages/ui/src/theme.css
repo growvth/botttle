@@ -34,33 +34,33 @@
   --radius-lg: 0.5rem;
 }
 
-/* --- Dark theme --- */
+/* --- Dark theme (lighter blues, less heavy) --- */
 [data-theme='dark'],
 .dark {
-  --color-primary: #4c97ff;
-  --color-primary-hover: #3692f0;
-  --color-primary-muted: #87ceeb;
-  --color-primary-light: #93c5fd;
-  --color-primary-pale: #1e3a5f;
+  --color-primary: #6eb5ff;
+  --color-primary-hover: #4c97ff;
+  --color-primary-muted: #93c5fd;
+  --color-primary-light: #b4d8ff;
+  --color-primary-pale: #2d4a6f;
 
-  --color-background: #0f172a;
-  --color-background-muted: #1e293b;
+  --color-background: #1a2332;
+  --color-background-muted: #243447;
   --color-surface: #334155;
   --color-border: #475569;
   --color-border-strong: #64748b;
 
-  --color-foreground: #f8fafc;
+  --color-foreground: #f1f5f9;
   --color-foreground-muted: #cbd5e1;
   --color-foreground-subtle: #94a3b8;
 
-  --color-success: #5cb85c;
-  --color-success-muted: #145214;
+  --color-success: #6bcf6b;
+  --color-success-muted: #1e4a1e;
   --color-accent-pink: #ffb6c1;
   --color-accent-yellow: #fcd34d;
 
-  --color-error: #ef4444;
-  --color-warning: #fbbf24;
-  --color-info: #4c97ff;
+  --color-error: #f87171;
+  --color-warning: #fcd34d;
+  --color-info: #6eb5ff;
 }
 
 @layer base {
