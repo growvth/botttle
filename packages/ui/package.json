@@ -13,7 +13,7 @@
     },
     "./styles": "./src/theme.css"
   },
-  "files": ["dist", "src/theme.css"],
+  "files": ["dist", "src/theme.css", "public"],
   "scripts": {
     "build": "tsc",
     "lint": "eslint src --max-warnings 0"
