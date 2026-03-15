@@ -71,8 +71,4 @@ export const invoiceService = {
     return invoiceRepository.findById(invoiceId);
   },
 
-  /** Stub: returns a placeholder. Replace with real PDF generation later. */
-  async getPdfUrl(_invoiceId: string): Promise<string> {
-    return `/api/invoices/pdf-placeholder`;
-  },
 };

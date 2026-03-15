@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileDown } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   fetchInvoice,
   updateInvoiceStatus,
   addPayment,
+  downloadInvoicePdf,
   type Invoice,
 } from '@/lib/api';
 import { cn } from '@botttle/ui';
@@ -43,6 +44,7 @@ export function InvoiceDetailPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'COMPLETED'>('COMPLETED');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const { data: res, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -107,7 +109,7 @@ export function InvoiceDetailPage() {
               {invoice.project?.client && ` · ${invoice.project.client.name}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
                 'rounded px-2 py-1 text-sm font-medium',
@@ -130,6 +132,19 @@ export function InvoiceDetailPage() {
                 ))}
               </select>
             )}
+            <button
+              type="button"
+              onClick={async () => {
+                setDownloadingPdf(true);
+                await downloadInvoicePdf(invoice.id, `invoice-${invoice.number}.pdf`);
+                setDownloadingPdf(false);
+              }}
+              disabled={downloadingPdf}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4 shrink-0" aria-hidden />
+              {downloadingPdf ? 'Downloading…' : 'Download PDF'}
+            </button>
           </div>
         </div>
       </div>

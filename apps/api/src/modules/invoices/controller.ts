@@ -2,8 +2,9 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '@botttle/db';
 import { invoiceService } from './service.js';
 import { createInvoiceSchema, updateInvoiceSchema, createPaymentSchema } from './schema.js';
+import { generateInvoicePdf } from './pdf.js';
 import { success, error } from '../../lib/response.js';
-import { HttpStatus, ErrorCode } from '../../lib/errors.js';
+import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
@@ -122,11 +123,24 @@ export async function addPayment(
   return reply.status(201).send(success(result));
 }
 
-export async function getPdf(
-  _request: FastifyRequest,
+export async function getInvoicePdf(
+  request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  return reply.status(501).send(
-    error(ErrorCode.NOT_IMPLEMENTED, 'PDF generation will be added in a future release')
-  );
+  const { user } = request as AuthenticatedRequest;
+  const id = (request.params as { id: string }).id;
+  const allowed = await canAccessInvoice(user, id);
+  if (!allowed) {
+    return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this invoice'));
+  }
+  const invoice = await invoiceService.getById(id);
+  if (!invoice) {
+    return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Invoice not found'));
+  }
+  const buffer = await generateInvoicePdf(invoice);
+  const filename = `invoice-${invoice.number.replace(/\s+/g, '-')}.pdf`;
+  return reply
+    .header('Content-Type', 'application/pdf')
+    .header('Content-Disposition', `attachment; filename="${filename}"`)
+    .send(buffer);
 }

@@ -3,10 +3,10 @@ import {
   listInvoices,
   listInvoicesByProject,
   getInvoice,
+  getInvoicePdf,
   createInvoice,
   updateInvoiceStatus,
   addPayment,
-  getPdf,
 } from './controller.js';
 import { requireAuth, requireRole } from '../auth/hooks.js';
 
@@ -15,7 +15,7 @@ export async function invoiceRoutes(
   _opts: FastifyPluginOptions
 ): Promise<void> {
   app.get('/', { preHandler: [requireAuth] }, listInvoices);
-  app.get('/pdf-placeholder', { preHandler: [requireAuth] }, getPdf);
+  app.get('/:id/pdf', { preHandler: [requireAuth] }, getInvoicePdf);
   app.get('/:id', { preHandler: [requireAuth] }, getInvoice);
   app.post('/', { preHandler: [requireAuth, requireRole('ADMIN')] }, createInvoice);
   app.patch('/:id/status', { preHandler: [requireAuth] }, updateInvoiceStatus);

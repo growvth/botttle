@@ -322,3 +322,24 @@ export async function addPayment(
     body: JSON.stringify(body),
   });
 }
+
+/** Download invoice PDF; triggers browser save. Returns false if request failed. */
+export async function downloadInvoicePdf(invoiceId: string, filename?: string): Promise<boolean> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/invoices/${invoiceId}/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return false;
+  const blob = await res.blob();
+  const name =
+    filename ||
+    res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] ||
+    `invoice-${invoiceId}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
