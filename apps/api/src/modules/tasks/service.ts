@@ -1,3 +1,4 @@
+import { milestoneService } from '../milestones/service.js';
 import { taskRepository } from './repository.js';
 import type { CreateTaskBody, UpdateTaskBody } from './schema.js';
 
@@ -18,13 +19,15 @@ export const taskService = {
   },
 
   async create(milestoneId: string, body: CreateTaskBody) {
-    return taskRepository.create({
+    const created = await taskRepository.create({
       milestoneId,
       title: body.title,
       description: body.description ?? null,
       status: (body.status ?? 'PENDING') as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED',
       dueDate: parseDate(body.dueDate as string | Date | undefined),
     });
+    await milestoneService.recalculateFromTasks(milestoneId);
+    return created;
   },
 
   async update(id: string, body: UpdateTaskBody) {
@@ -35,13 +38,17 @@ export const taskService = {
     if (body.description !== undefined) data.description = body.description;
     if (body.status !== undefined) data.status = body.status as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
     if (body.dueDate !== undefined) data.dueDate = parseDate(body.dueDate as string | Date);
-    return taskRepository.update(id, data);
+    const updated = await taskRepository.update(id, data);
+    if (updated) await milestoneService.recalculateFromTasks(updated.milestoneId);
+    return updated;
   },
 
   async delete(id: string) {
     const existing = await taskRepository.findById(id);
     if (!existing) return null;
+    const milestoneId = existing.milestoneId;
     await taskRepository.delete(id);
+    await milestoneService.recalculateFromTasks(milestoneId);
     return { deleted: true };
   },
 };

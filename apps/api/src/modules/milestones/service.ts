@@ -46,4 +46,21 @@ export const milestoneService = {
     await milestoneRepository.delete(id);
     return { deleted: true };
   },
+
+  /** Recompute completionPercentage and status from task counts. Call after task create/update/delete. */
+  async recalculateFromTasks(milestoneId: string) {
+    const milestone = await milestoneRepository.findById(milestoneId);
+    if (!milestone?.tasks?.length) {
+      if (milestone) {
+        await milestoneRepository.update(milestoneId, { completionPercentage: 0, status: 'PENDING' as const });
+      }
+      return;
+    }
+    const total = milestone.tasks.length;
+    const completed = milestone.tasks.filter((t) => t.status === 'COMPLETED').length;
+    const completionPercentage = Math.round((100 * completed) / total);
+    const status =
+      completed === total ? ('COMPLETED' as const) : completed > 0 ? ('IN_PROGRESS' as const) : ('PENDING' as const);
+    await milestoneRepository.update(milestoneId, { completionPercentage, status });
+  },
 };

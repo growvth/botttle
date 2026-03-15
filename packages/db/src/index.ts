@@ -17,4 +17,4 @@ if (process.env['NODE_ENV'] !== 'production') {
 }
 
 export { PrismaClient };
-export type { Role, ProjectStatus, MilestoneStatus } from '@prisma/client';
+export type { Role, ProjectStatus, MilestoneStatus, InvoiceStatus, PaymentStatus } from '@prisma/client';

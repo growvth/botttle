@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, Users, Sun, Moon, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, FileText, Sun, Moon, LogOut } from 'lucide-react';
 import { cn, useTheme } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/invoices', label: 'Invoices', icon: FileText },
   { to: '/clients', label: 'Clients', icon: Users },
 ] as const;
 

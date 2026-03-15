@@ -1,3 +1,5 @@
+import { useAuthStore } from '@/stores/auth-store';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const TOKEN_KEY = 'botttle_access_token';
 
@@ -13,11 +15,13 @@ function getStoredToken(): string | null {
   }
 }
 
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+
 export async function api<T>(
   path: string,
-  options: RequestInit & { token?: string | null } = {}
+  options: RequestInit & { token?: string | null; _retried?: boolean } = {}
 ): Promise<ApiResponse<T>> {
-  const { token = getStoredToken(), ...init } = options;
+  const { token = getStoredToken(), _retried, ...init } = options;
   const headers = new Headers(init.headers);
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -27,6 +31,20 @@ export async function api<T>(
   }
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   const json = (await res.json()) as ApiResponse<T>;
+
+  if (res.status === 401 && !_retried && !AUTH_PATHS.some((p) => path.startsWith(p))) {
+    const state = useAuthStore.getState();
+    const refreshToken = state.refreshToken;
+    if (refreshToken) {
+      const refreshRes = await refresh(refreshToken);
+      if (refreshRes.success && state.user) {
+        state.setAuth(refreshRes.data.accessToken, refreshRes.data.refreshToken, state.user);
+        return api<T>(path, { ...init, token: refreshRes.data.accessToken, _retried: true });
+      }
+    }
+    state.clearAuth();
+  }
+
   if (!res.ok) {
     return json as ApiError;
   }
@@ -224,4 +242,83 @@ export async function updateClient(
 
 export async function deleteClient(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
   return api<{ deleted: boolean }>(`/clients/${id}`, { method: 'DELETE' });
+}
+
+// Invoices
+export type InvoiceItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+};
+
+export type Payment = {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+};
+
+export type Invoice = {
+  id: string;
+  projectId: string;
+  number: string;
+  status: string;
+  dueDate: string;
+  currency: string;
+  taxRate: number;
+  subtotal: number;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
+  project?: { id: string; title: string; client?: { id: string; name: string; email: string | null } };
+  items?: InvoiceItem[];
+  payments?: Payment[];
+};
+
+export async function fetchInvoices(): Promise<ApiResponse<Invoice[]>> {
+  return api<Invoice[]>('/invoices');
+}
+
+export async function fetchInvoicesByProject(
+  projectId: string
+): Promise<ApiResponse<Invoice[]>> {
+  return api<Invoice[]>(`/projects/${projectId}/invoices`);
+}
+
+export async function fetchInvoice(id: string): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>(`/invoices/${id}`);
+}
+
+export async function createInvoice(body: {
+  projectId: string;
+  dueDate: string;
+  currency?: string;
+  taxRate?: number;
+  items: { description: string; quantity: number; unitPrice: number }[];
+}): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>('/invoices', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateInvoiceStatus(
+  id: string,
+  status: string
+): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>(`/invoices/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function addPayment(
+  invoiceId: string,
+  body: { amount: number; status?: string; paidAt?: string }
+): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>(`/invoices/${invoiceId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }

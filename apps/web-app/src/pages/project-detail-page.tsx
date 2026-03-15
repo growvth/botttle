@@ -3,22 +3,33 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@botttle/ui';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   fetchProject,
   createMilestone,
   createTask,
   updateMilestone,
   updateTask,
+  updateProject,
   type Milestone,
   type Task,
 } from '@/lib/api';
 
+const PROJECT_STATUS = ['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED'] as const;
+const PROJECT_STATUS_STYLE: Record<string, string> = {
+  DRAFT: 'bg-muted text-foreground-muted',
+  ACTIVE: 'bg-success-muted text-success',
+  ON_HOLD: 'bg-destructive/10 text-destructive',
+  COMPLETED: 'bg-primary-pale text-primary',
+};
 const MILESTONE_STATUS = ['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const;
 const TASK_STATUS = ['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const;
 
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'ADMIN';
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [addingTaskFor, setAddingTaskFor] = useState<string | null>(null);
 
@@ -30,6 +41,14 @@ export function ProjectDetailPage() {
 
   const project = projectRes?.success ? projectRes.data : null;
   const milestones = project?.milestones ?? [];
+
+  const updateProjectMutation = useMutation({
+    mutationFn: (body: { status: string }) => updateProject(projectId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
 
   if (!projectId || (projectRes && !projectRes.success)) {
     return (
@@ -54,8 +73,29 @@ export function ProjectDetailPage() {
         {project.description && (
           <p className="mt-1 text-foreground-muted">{project.description}</p>
         )}
-        <div className="mt-2 flex gap-2 text-sm">
-          <span className="rounded bg-primary-pale px-2 py-0.5 text-primary">{project.status}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+          <span
+            className={cn(
+              'rounded px-2 py-0.5 text-xs font-medium',
+              PROJECT_STATUS_STYLE[project.status] ?? 'bg-muted text-foreground-muted'
+            )}
+          >
+            {project.status}
+          </span>
+          {isAdmin && (
+            <select
+              value={project.status}
+              onChange={(e) => updateProjectMutation.mutate({ status: e.target.value })}
+              disabled={updateProjectMutation.isPending}
+              className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+            >
+              {PROJECT_STATUS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           {project.client && (
             <span className="text-foreground-muted">Client: {project.client.name}</span>
           )}

@@ -7,6 +7,9 @@ import { DashboardPage } from '@/pages/dashboard-page';
 import { ProjectsListPage } from '@/pages/projects-list-page';
 import { ProjectDetailPage } from '@/pages/project-detail-page';
 import { ClientsListPage } from '@/pages/clients-list-page';
+import { InvoicesListPage } from '@/pages/invoices-list-page';
+import { InvoiceDetailPage } from '@/pages/invoice-detail-page';
+import { InvoiceCreatePage } from '@/pages/invoice-create-page';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
@@ -55,6 +58,9 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="projects" element={<ProjectsListPage />} />
           <Route path="projects/:projectId" element={<ProjectDetailPage />} />
+          <Route path="invoices" element={<InvoicesListPage />} />
+          <Route path="invoices/new" element={<InvoiceCreatePage />} />
+          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="clients" element={<ClientsListPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
