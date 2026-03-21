@@ -3,11 +3,124 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary SEO -->
+    <title>botttle — Self-Hosted Client Portal for Freelancers</title>
     <meta
       name="description"
-      content="botttle is the self-hosted client portal for freelancers who want projects, invoices, reporting, and collaboration in one clean workspace."
+      content="botttle is the open-source, self-hosted client portal for freelancers and small teams. Manage projects, send invoices, track time, and collaborate with clients from your own server."
     />
-    <title>botttle - self-hosted client portal</title>
+    <meta
+      name="keywords"
+      content="botttle, bottle, self-hosted client portal, freelancer project management, open source invoicing, self-hosted invoicing, time tracking, client portal software, freelancer tools, project management self-hosted, invoice generator, Docker client portal"
+    />
+    <meta name="author" content="growvth" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://botttle.dev/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://botttle.dev/" />
+    <meta property="og:title" content="botttle — Self-Hosted Client Portal for Freelancers" />
+    <meta
+      property="og:description"
+      content="Manage projects, invoices, time tracking, and client collaboration from a single self-hosted workspace. Open source. Deploy with Docker."
+    />
+    <meta property="og:site_name" content="botttle" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://botttle.dev/og-image.png" />
+    <meta property="og:image:alt" content="botttle logo" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="botttle — Self-Hosted Client Portal for Freelancers" />
+    <meta
+      name="twitter:description"
+      content="Manage projects, invoices, time tracking, and client collaboration from a single self-hosted workspace. Open source. Deploy with Docker."
+    />
+    <meta name="twitter:image" content="https://botttle.dev/og-image.png" />
+    <meta name="twitter:image:alt" content="botttle logo" />
+
+    <!-- Additional SEO signals -->
+    <meta name="application-name" content="botttle" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "botttle",
+        "alternateName": ["bottle", "botttle client portal"],
+        "description": "Self-hosted client portal for freelancers. Manage projects, milestones, invoices, time tracking, and client collaboration from your own server.",
+        "url": "https://botttle.dev",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Linux, macOS, Windows (via Docker)",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "growvth",
+          "url": "https://github.com/growvth"
+        },
+        "softwareHelp": {
+          "@type": "WebPage",
+          "url": "https://botttle.dev/docs"
+        },
+        "codeRepository": "https://github.com/growvth/botttle",
+        "programmingLanguage": ["TypeScript", "React", "Node.js"],
+        "featureList": [
+          "Project management with milestones and tasks",
+          "Invoice creation with PDF export",
+          "Time tracking with CSV export",
+          "Client portal with role-based access",
+          "Comments and file uploads",
+          "Lemon Squeezy payment integration",
+          "Docker deployment",
+          "Self-hosted with PostgreSQL"
+        ]
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "botttle",
+        "alternateName": "bottle",
+        "url": "https://botttle.dev",
+        "description": "Self-hosted client portal for freelancers and small teams.",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://botttle.dev/docs",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "growvth",
+        "url": "https://github.com/growvth",
+        "logo": "https://botttle.dev/og-image.png",
+        "sameAs": [
+          "https://github.com/growvth/botttle"
+        ]
+      }
+    </script>
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/botttle.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,6 +130,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>botttle — Self-Hosted Client Portal</h1>
+      <p>botttle is the open-source, self-hosted client portal for freelancers and small teams. Manage projects, milestones, invoices, time tracking, and client collaboration from your own server. Deploy with Docker in minutes.</p>
+      <h2>Features</h2>
+      <ul>
+        <li>Project management with milestones, tasks, and automatic completion tracking</li>
+        <li>Invoicing with line items, multi-currency, tax rates, and PDF export</li>
+        <li>Time tracking with start/stop timers, billable hours, and CSV export</li>
+        <li>Client portal with role-based access — admins and clients see only their data</li>
+        <li>Comments and file uploads scoped to each project</li>
+        <li>Lemon Squeezy webhook integration for automatic payment capture</li>
+        <li>Self-hosted deployment with Docker Compose (PostgreSQL, Redis, API, Web UI)</li>
+      </ul>
+      <p>Built with Fastify, React, PostgreSQL, Prisma, and Bun. <a href="https://github.com/growvth/botttle">View on GitHub</a>.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

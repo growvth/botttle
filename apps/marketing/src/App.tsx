@@ -25,7 +25,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '@botttle/ui';
 import logoUrl from '../../../packages/ui/public/botttle.svg';
 
@@ -748,7 +748,7 @@ function HomePage(): JSX.Element {
               Self-hosted &middot; Open architecture
             </span>
             <h1 className="hero-h1">
-              The client portal<br />
+              <span className="sr-only">botttle — </span>The client portal<br />
               you actually own.
             </h1>
             <p className="hero-sub">
@@ -1149,12 +1149,56 @@ function DocsPage(): JSX.Element {
 /*  App                                                               */
 /* ------------------------------------------------------------------ */
 
+const pageSEO: Record<string, { title: string; description: string }> = {
+  '/': {
+    title: 'botttle — Self-Hosted Client Portal for Freelancers',
+    description:
+      'botttle is the open-source, self-hosted client portal for freelancers and small teams. Manage projects, send invoices, track time, and collaborate with clients from your own server.',
+  },
+  '/features': {
+    title: 'Features — botttle | Projects, Invoicing, Time Tracking & More',
+    description:
+      'Explore every feature in botttle: project management with milestones, invoicing with PDF export, time tracking, client portal with role-based access, comments, file uploads, and Docker deployment.',
+  },
+  '/docs': {
+    title: 'Documentation — botttle | Setup, API Reference & Configuration',
+    description:
+      'Complete botttle documentation: getting started guide, Docker deployment, environment configuration, full REST API reference for projects, invoices, time logs, and database schema.',
+  },
+};
+
+function usePageSEO(path: string) {
+  useEffect(() => {
+    const seo = pageSEO[path] || pageSEO['/'];
+    document.title = seo.title;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', seo.description);
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', seo.title);
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', seo.description);
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', `https://botttle.dev${path === '/' ? '' : path}`);
+
+    const twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute('content', seo.title);
+    const twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute('content', seo.description);
+
+    const canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) canonical.setAttribute('href', `https://botttle.dev${path === '/' ? '/' : path}`);
+  }, [path]);
+}
+
 function App(): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const year = new Date().getFullYear();
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   const isDocsPage = path === '/docs';
   const isFeaturesPage = path === '/features';
+
+  usePageSEO(path);
 
   let page = <HomePage />;
   if (isDocsPage) page = <DocsPage />;
@@ -1168,7 +1212,7 @@ function App(): JSX.Element {
             <img src={logoUrl} alt="botttle" className="brand-logo" />
             <span>botttle</span>
           </a>
-          <nav className={`site-nav ${menuOpen ? 'open' : ''}`}>
+          <nav className={`site-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
             {navLinks.map((link) => (
               <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
                 {link.label}
@@ -1209,7 +1253,11 @@ function App(): JSX.Element {
                 <h4>Product</h4>
                 <a href="/features">Features</a>
                 <a href="/docs">Documentation</a>
-                <a href="/docs">Getting started</a>
+              </div>
+              <div>
+                <h4>Open Source</h4>
+                <a href="https://github.com/growvth/botttle" target="_blank" rel="noreferrer">GitHub</a>
+                <a href="https://github.com/growvth/botttle/issues" target="_blank" rel="noreferrer">Issues</a>
               </div>
               <div>
                 <h4>Stack</h4>
