@@ -46,6 +46,9 @@ Agentd.md
 *.db
 *.db-journal
 
+# API local file uploads (project files module)
+apps/api/uploads/
+
 # Dependency directories
 node_modules/
 jspm_packages/

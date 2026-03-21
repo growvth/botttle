@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Play, Square } from 'lucide-react';
 import { cn } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -11,8 +11,23 @@ import {
   updateMilestone,
   updateTask,
   updateProject,
+  fetchTimeLogs,
+  createTimeLog,
+  stopTimeLog,
+  deleteTimeLog,
+  fetchComments,
+  createComment,
+  deleteComment,
+  fetchProjectFiles,
+  uploadProjectFile,
+  deleteProjectFile,
+  downloadProjectFile,
+  downloadTimeReportCsv,
   type Milestone,
   type Task,
+  type TimeLog,
+  type ProjectComment,
+  type ProjectFileRow,
 } from '@/lib/api';
 
 const PROJECT_STATUS = ['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED'] as const;
@@ -41,6 +56,29 @@ export function ProjectDetailPage() {
 
   const project = projectRes?.success ? projectRes.data : null;
   const milestones = project?.milestones ?? [];
+  const { data: timeLogsRes } = useQuery({
+    queryKey: ['timeLogs', projectId],
+    queryFn: () => fetchTimeLogs(projectId!),
+    enabled: !!projectId,
+  });
+  const timeLogs = timeLogsRes?.success ? timeLogsRes.data : [];
+
+  const { data: commentsRes } = useQuery({
+    queryKey: ['comments', projectId],
+    queryFn: () => fetchComments(projectId!),
+    enabled: !!projectId,
+  });
+  const comments = commentsRes?.success ? commentsRes.data : [];
+  const commentsLoadError =
+    commentsRes && !commentsRes.success ? commentsRes.error.message : null;
+
+  const { data: filesRes } = useQuery({
+    queryKey: ['projectFiles', projectId],
+    queryFn: () => fetchProjectFiles(projectId!),
+    enabled: !!projectId,
+  });
+  const files = filesRes?.success ? filesRes.data : [];
+  const filesLoadError = filesRes && !filesRes.success ? filesRes.error.message : null;
 
   const updateProjectMutation = useMutation({
     mutationFn: (body: { status: string }) => updateProject(projectId!, body),
@@ -102,6 +140,16 @@ export function ProjectDetailPage() {
         </div>
       </div>
 
+      <TimeLogsSection projectId={projectId} logs={timeLogs} />
+
+      <CommentsSection
+        projectId={projectId}
+        comments={comments}
+        loadError={commentsLoadError}
+      />
+
+      <FilesSection projectId={projectId} files={files} loadError={filesLoadError} />
+
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium text-foreground">Milestones</h2>
@@ -142,6 +190,432 @@ export function ProjectDetailPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function formatDuration(seconds: number): string {
+  const s = Math.max(0, seconds);
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+}
+
+function TimeLogsSection({ projectId, logs }: { projectId: string; logs: TimeLog[] }) {
+  const queryClient = useQueryClient();
+  const [description, setDescription] = useState('');
+  const [billableOnly, setBillableOnly] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportRange = useMemo(() => {
+    const to = new Date();
+    const from = new Date(to);
+    from.setUTCDate(from.getUTCDate() - 89);
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  }, []);
+  const totalTrackedSeconds = useMemo(
+    () => logs.reduce((sum, log) => sum + (log.durationSeconds ?? 0), 0),
+    [logs]
+  );
+  const billableTrackedSeconds = useMemo(
+    () => logs.filter((l) => l.billable !== false).reduce((sum, log) => sum + (log.durationSeconds ?? 0), 0),
+    [logs]
+  );
+  const visibleLogs = useMemo(
+    () => (billableOnly ? logs.filter((l) => l.billable !== false) : logs),
+    [billableOnly, logs]
+  );
+
+  const create = useMutation({
+    mutationFn: () => createTimeLog(projectId, { description: description.trim() || undefined }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeLogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setDescription('');
+    },
+  });
+
+  const stop = useMutation({
+    mutationFn: (id: string) => stopTimeLog(id, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeLogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteTimeLog(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timeLogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+
+  const runningLog = useMemo(
+    () => logs.find((l) => !l.endedAt) ?? null,
+    [logs]
+  );
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-lg font-medium text-foreground">Time tracking</h2>
+          <p className="text-xs text-foreground-muted">
+            Total tracked: {formatDuration(totalTrackedSeconds)} · Billable:{' '}
+            {formatDuration(billableTrackedSeconds)}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true);
+            try {
+              await downloadTimeReportCsv({
+                from: exportRange.from,
+                to: exportRange.to,
+                projectId,
+              });
+            } finally {
+              setExporting(false);
+            }
+          }}
+          className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-50"
+        >
+          {exporting ? 'Exporting…' : 'Export CSV (90d)'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!runningLog) create.mutate();
+          }}
+          disabled={!!runningLog || create.isPending}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white shadow-subtle',
+            runningLog ? 'bg-muted text-foreground-muted' : 'bg-primary hover:bg-primary-hover'
+          )}
+        >
+          <Play className="h-4 w-4" aria-hidden />
+          {runningLog ? 'Running' : 'Start timer'}
+        </button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (description.trim()) create.mutate();
+          }}
+        >
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add a manual time log description"
+            className="min-w-[200px] flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
+          />
+          <button
+            type="submit"
+            disabled={create.isPending || !description.trim()}
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            Add entry
+          </button>
+        </form>
+
+        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+          <p className="text-foreground-muted">
+            Showing {visibleLogs.length} of {logs.length} entries
+          </p>
+          <label className="inline-flex items-center gap-1 text-foreground-muted">
+            <input
+              type="checkbox"
+              className="h-3 w-3 rounded border-border bg-background"
+              checked={billableOnly}
+              onChange={(e) => setBillableOnly(e.target.checked)}
+            />
+            Billable only
+          </label>
+        </div>
+
+        <div className="mt-2 space-y-1 text-sm">
+          {visibleLogs.length === 0 ? (
+            <p className="text-foreground-muted">No time logs yet.</p>
+          ) : (
+            visibleLogs.map((log) => {
+              const started = new Date(log.startedAt).toLocaleString();
+              const ended = log.endedAt ? new Date(log.endedAt).toLocaleString() : null;
+              const isRunning = !log.endedAt;
+              return (
+                <div
+                  key={log.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-2 py-1"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-foreground">
+                      {log.description || (isRunning ? 'Running timer' : 'Time entry')}
+                    </div>
+                    <div className="text-xs text-foreground-muted">
+                      {started}
+                      {ended ? ` → ${ended}` : ''}
+                      {log.billable === false ? ' · Non-billable' : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-foreground">
+                      {isRunning ? 'In progress' : formatDuration(log.durationSeconds)}
+                    </span>
+                    {isRunning && (
+                      <button
+                        type="button"
+                        onClick={() => stop.mutate(log.id)}
+                        disabled={stop.isPending}
+                        className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                      >
+                        <Square className="h-3 w-3" aria-hidden />
+                        Stop
+                      </button>
+                    )}
+                    {!isRunning && (
+                      <button
+                        type="button"
+                        onClick={() => remove.mutate(log.id)}
+                        disabled={remove.isPending}
+                        className="text-xs text-foreground-muted hover:text-destructive"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CommentsSection({
+  projectId,
+  comments,
+  loadError,
+}: {
+  projectId: string;
+  comments: ProjectComment[];
+  loadError: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const [body, setBody] = useState('');
+  const [postError, setPostError] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: () => createComment(projectId, { body: body.trim() }),
+    onSuccess: (res) => {
+      if (res.success) {
+        queryClient.invalidateQueries({ queryKey: ['comments', projectId] });
+        setBody('');
+        setPostError(null);
+      } else {
+        setPostError(res.error.message);
+      }
+    },
+    onError: (e: Error) => setPostError(e.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteComment(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments', projectId] }),
+  });
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-medium text-foreground">Comments</h2>
+      {loadError && (
+        <p className="text-sm text-destructive" role="alert">
+          Could not load comments: {loadError}
+        </p>
+      )}
+      {postError && (
+        <p className="text-sm text-destructive" role="alert">
+          {postError}
+        </p>
+      )}
+      <form
+        className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (body.trim()) create.mutate();
+        }}
+      >
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write an update for this project…"
+          rows={2}
+          className="min-h-[72px] flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+        />
+        <button
+          type="submit"
+          disabled={create.isPending || !body.trim()}
+          className="h-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+        >
+          Post
+        </button>
+      </form>
+      <ul className="space-y-2">
+        {comments.length === 0 ? (
+          <p className="text-sm text-foreground-muted">No comments yet.</p>
+        ) : (
+          comments.map((c) => {
+            const who = c.user.name || c.user.email;
+            const canDelete = user?.role === 'ADMIN' || c.userId === user?.id;
+            return (
+              <li key={c.id} className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-foreground">{who}</span>
+                  <span className="text-xs text-foreground-muted">
+                    {new Date(c.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-foreground">{c.body}</p>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(c.id)}
+                    disabled={remove.isPending}
+                    className="mt-2 text-xs text-foreground-muted hover:text-destructive"
+                  >
+                    Delete
+                  </button>
+                )}
+              </li>
+            );
+          })
+        )}
+      </ul>
+    </section>
+  );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function FilesSection({
+  projectId,
+  files,
+  loadError,
+}: {
+  projectId: string;
+  files: ProjectFileRow[];
+  loadError: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteProjectFile(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projectFiles', projectId] }),
+  });
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-medium text-foreground">Files</h2>
+        <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted">
+          {uploading ? 'Uploading…' : 'Upload'}
+          <input
+            type="file"
+            className="sr-only"
+            accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt"
+            disabled={uploading}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              setUploadError(null);
+              setUploading(true);
+              try {
+                const res = await uploadProjectFile(projectId, f);
+                if (res.success) {
+                  queryClient.invalidateQueries({ queryKey: ['projectFiles', projectId] });
+                } else {
+                  setUploadError(res.error.message);
+                }
+              } catch (err) {
+                setUploadError(err instanceof Error ? err.message : 'Upload failed');
+              } finally {
+                setUploading(false);
+              }
+            }}
+          />
+        </label>
+      </div>
+      {loadError && (
+        <p className="text-sm text-destructive" role="alert">
+          Could not load files: {loadError}
+        </p>
+      )}
+      {uploadError && (
+        <p className="text-sm text-destructive" role="alert">
+          {uploadError}
+        </p>
+      )}
+      <p className="text-xs text-foreground-muted">PDF, images, or plain text, up to 10MB.</p>
+      <ul className="space-y-2">
+        {files.length === 0 ? (
+          <p className="text-sm text-foreground-muted">No files yet.</p>
+        ) : (
+          files.map((f) => {
+            const canDelete = user?.role === 'ADMIN' || f.uploadedById === user?.id;
+            return (
+              <li
+                key={f.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => downloadProjectFile(f.id, f.filename)}
+                    className="truncate text-left text-primary hover:underline"
+                  >
+                    {f.filename}
+                  </button>
+                  <p className="text-xs text-foreground-muted">
+                    {formatFileSize(f.size)} · {f.uploadedBy.name || f.uploadedBy.email}
+                  </p>
+                </div>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(f.id)}
+                    disabled={remove.isPending}
+                    className="text-xs text-foreground-muted hover:text-destructive"
+                  >
+                    Delete
+                  </button>
+                )}
+              </li>
+            );
+          })
+        )}
+      </ul>
+    </section>
   );
 }
 

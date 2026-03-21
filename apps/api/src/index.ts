@@ -46,7 +46,10 @@ const PORT = Number(process.env['PORT']) || 3001;
 async function main() {
   const app = await buildApp();
   try {
-    await app.listen({ port: PORT, host: '0.0.0.0' });
+    // On some macOS environments, Fastify can throw while enumerating interfaces
+    // when binding to 0.0.0.0. Defaulting to 127.0.0.1 avoids that dev-only issue.
+    const host = process.env['HOST'] || '127.0.0.1';
+    await app.listen({ port: PORT, host });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

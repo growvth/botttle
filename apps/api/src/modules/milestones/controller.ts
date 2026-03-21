@@ -5,6 +5,7 @@ import { createMilestoneSchema, updateMilestoneSchema } from './schema.js';
 import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
+import { projectIdFromRequest } from '../../lib/route-params.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
   if (user.role === 'ADMIN') return true;
@@ -25,7 +26,10 @@ export async function listMilestones(
   reply: FastifyReply
 ): Promise<void> {
   const { user } = request as AuthenticatedRequest;
-  const projectId = (request.params as { projectId: string }).projectId;
+  const projectId = projectIdFromRequest(request);
+  if (!projectId) {
+    return reply.status(HttpStatus.BAD_REQUEST).send(error('VALIDATION_ERROR', 'Missing project id'));
+  }
   const allowed = await canAccessProject(user, projectId);
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this project'));
@@ -56,7 +60,10 @@ export async function createMilestone(
   reply: FastifyReply
 ): Promise<void> {
   const { user } = request as AuthenticatedRequest;
-  const projectId = (request.params as { projectId: string }).projectId;
+  const projectId = projectIdFromRequest(request);
+  if (!projectId) {
+    return reply.status(HttpStatus.BAD_REQUEST).send(error('VALIDATION_ERROR', 'Missing project id'));
+  }
   const allowed = await canAccessProject(user, projectId);
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this project'));

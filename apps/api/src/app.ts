@@ -1,4 +1,5 @@
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
@@ -11,6 +12,11 @@ import { milestoneNestedRoutes, milestoneRoutes } from './modules/milestones/rou
 import { projectRoutes } from './modules/projects/routes.js';
 import { taskNestedRoutes, taskRoutes } from './modules/tasks/routes.js';
 import { userRoutes } from './modules/users/routes.js';
+import { timeLogNestedRoutes, timeLogRoutes } from './modules/timelogs/routes.js';
+import { commentNestedRoutes, commentRoutes } from './modules/comments/routes.js';
+import { projectFileNestedRoutes, projectFileRoutes } from './modules/project-files/routes.js';
+import { reportsRoutes } from './modules/reports/routes.js';
+import { lemonSqueezyWebhookRoutes } from './modules/webhooks/lemon-squeezy/routes.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -23,6 +29,10 @@ export async function buildApp() {
   await app.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute',
+  });
+
+  await app.register(multipart, {
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
   app.setErrorHandler((err: unknown, _request, reply) => {
@@ -48,10 +58,18 @@ export async function buildApp() {
   await app.register(projectRoutes, { prefix: '/api/projects' });
   await app.register(milestoneNestedRoutes, { prefix: '/api/projects' });
   await app.register(invoiceNestedRoutes, { prefix: '/api/projects' });
+  await app.register(timeLogNestedRoutes, { prefix: '/api/projects' });
+  await app.register(commentNestedRoutes, { prefix: '/api/projects' });
+  await app.register(projectFileNestedRoutes, { prefix: '/api/projects' });
   await app.register(milestoneRoutes, { prefix: '/api/milestones' });
   await app.register(taskNestedRoutes, { prefix: '/api/projects' });
   await app.register(taskRoutes, { prefix: '/api/tasks' });
   await app.register(invoiceRoutes, { prefix: '/api/invoices' });
+  await app.register(timeLogRoutes, { prefix: '/api/time-logs' });
+  await app.register(commentRoutes, { prefix: '/api/comments' });
+  await app.register(projectFileRoutes, { prefix: '/api/project-files' });
+  await app.register(reportsRoutes, { prefix: '/api/reports' });
+  await app.register(lemonSqueezyWebhookRoutes, { prefix: '/api/webhooks/lemon-squeezy' });
 
   return app;
 }

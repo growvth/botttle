@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/web-app/public/botttle.png" alt="botttle logo" width="120" />
+  <img src="./packages/ui/public/botttle.svg" alt="botttle logo" width="120" />
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 Freelancers and small studios are often stuck between heavyweight agency tools and rigid SaaS billing apps. botttle gives you your own client portal that you control, with a modern UI and a focus on day to day work.
 
 - **All your work in one place**  
-  See projects, milestones, tasks, invoices, and (soon) time logs across each client, without jumping between tools.
+  Projects, milestones, tasks, invoices, time tracking, comments, and file uploads are scoped per project and client.
 
 - **Clear, professional invoicing**  
   Create project linked invoices with line items, tax and currency support, track payments and download polished PDFs you can send to clients.
@@ -39,8 +39,11 @@ Freelancers and small studios are often stuck between heavyweight agency tools a
 botttle is in active development. The current build includes:
 
 - Authentication, clients, projects, milestones, and tasks
-- Invoicing with payments and PDF export
-- A basic dashboard with project and invoice highlights
+- Invoicing with payments, PDF export, and Lemon Squeezy webhook hooks (checkout custom data `invoice_id`)
+- Time tracking with billable flags, per-project CSV export, and reports (`/api/reports/summary`, `/api/reports/time`)
+- Dashboard charts (Recharts): workload, revenue snapshot, time split and trend
+- Project comments and file uploads (local disk; API ready for S3-style storage later)
 
-Upcoming work will add time tracking, collaboration tools, analytics, and integrated payments via Lemon Squeezy.
+**Docs:** [Development](docs/DEVELOPMENT.md) · [API](docs/API_DOCS.md) · [Self-hosting](docs/SELF_HOSTING.md)
 
+Upcoming work may add a marketing site, Docker compose, Redis and background jobs, richer client-only UX, and deeper analytics.

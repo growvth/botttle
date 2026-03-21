@@ -49,11 +49,37 @@ export const invoiceService = {
     return invoiceRepository.updateStatus(id, status as 'DRAFT' | 'SENT' | 'PARTIAL' | 'PAID' | 'OVERDUE');
   },
 
+  async addPaymentFromProvider(
+    invoiceId: string,
+    body: { amount: number; externalId: string; paidAt?: Date }
+  ) {
+    const invoice = await invoiceRepository.findById(invoiceId);
+    if (!invoice) return null;
+    const paidAt = body.paidAt ?? new Date();
+    await invoiceRepository.addPayment({
+      invoiceId,
+      amount: body.amount,
+      status: 'COMPLETED',
+      paidAt,
+      externalId: body.externalId,
+    });
+    const refreshed = await invoiceRepository.findById(invoiceId);
+    if (!refreshed) return null;
+    const totalPaid = refreshed.payments
+      .filter((p) => p.status === 'COMPLETED')
+      .reduce((sum, p) => sum + p.amount, 0);
+    let newStatus = refreshed.status;
+    if (totalPaid >= refreshed.total) newStatus = 'PAID';
+    else if (totalPaid > 0) newStatus = 'PARTIAL';
+    await invoiceRepository.updateStatus(invoiceId, newStatus);
+    return invoiceRepository.findById(invoiceId);
+  },
+
   async addPayment(invoiceId: string, body: CreatePaymentBody) {
     const invoice = await invoiceRepository.findById(invoiceId);
     if (!invoice) return null;
     const paidAt = body.paidAt != null ? parseDate(body.paidAt as string | Date) : null;
-    const payment = await invoiceRepository.addPayment({
+    await invoiceRepository.addPayment({
       invoiceId,
       amount: body.amount,
       status: body.status ?? 'PENDING',

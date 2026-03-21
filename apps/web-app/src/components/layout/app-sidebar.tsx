@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FolderKanban, Users, FileText, Sun, Moon, LogOut } from 'lucide-react';
 import { cn, useTheme } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
+import { BrandLogo } from '@/components/brand-logo';
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,7 +25,7 @@ export function AppSidebar() {
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-background">
       <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-        <img src="/botttle.png" alt="botttle" className="h-8 w-8 object-contain" />
+        <BrandLogo className="h-8 w-8 object-contain" />
         <span className="font-semibold text-foreground">botttle</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-2">

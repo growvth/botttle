@@ -343,3 +343,189 @@ export async function downloadInvoicePdf(invoiceId: string, filename?: string): 
   URL.revokeObjectURL(url);
   return true;
 }
+
+// Time logs
+export type TimeLog = {
+  id: string;
+  projectId: string;
+  description: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number;
+  billable: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function fetchTimeLogs(projectId: string): Promise<ApiResponse<TimeLog[]>> {
+  return api<TimeLog[]>(`/projects/${projectId}/time-logs`);
+}
+
+export async function createTimeLog(
+  projectId: string,
+  body: { description?: string; billable?: boolean; startedAt?: string; endedAt?: string }
+): Promise<ApiResponse<TimeLog>> {
+  return api<TimeLog>(`/projects/${projectId}/time-logs`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function stopTimeLog(
+  id: string,
+  body: { endedAt?: string } = {}
+): Promise<ApiResponse<TimeLog>> {
+  return api<TimeLog>(`/time-logs/${id}/stop`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteTimeLog(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+  return api<{ deleted: boolean }>(`/time-logs/${id}`, { method: 'DELETE' });
+}
+
+// Reports
+export type ReportsSummary = {
+  projectCountByStatus: { status: string; count: number }[];
+  invoiceCountByStatus: { status: string; count: number; total: number }[];
+  clientCount: number;
+  timeSeconds: { total: number; billable: number; nonBillable: number };
+  totalRevenue: number;
+  tasks: { completed: number; total: number };
+};
+
+export type TimeReportDay = {
+  date: string;
+  billableSeconds: number;
+  nonBillableSeconds: number;
+};
+
+export type TimeReportRow = {
+  date: string;
+  projectId: string;
+  projectTitle: string;
+  description: string | null;
+  seconds: number;
+  billable: boolean;
+};
+
+export async function fetchReportsSummary(): Promise<ApiResponse<ReportsSummary>> {
+  return api<ReportsSummary>('/reports/summary');
+}
+
+export async function fetchReportsTime(params: {
+  from: string;
+  to: string;
+  projectId?: string;
+}): Promise<ApiResponse<{ days: TimeReportDay[]; rows: TimeReportRow[] }>> {
+  const qs = new URLSearchParams({ from: params.from, to: params.to });
+  if (params.projectId) qs.set('projectId', params.projectId);
+  return api<{ days: TimeReportDay[]; rows: TimeReportRow[] }>(`/reports/time?${qs}`);
+}
+
+export async function downloadTimeReportCsv(params: {
+  from: string;
+  to: string;
+  projectId?: string;
+}): Promise<boolean> {
+  const qs = new URLSearchParams({ from: params.from, to: params.to, format: 'csv' });
+  if (params.projectId) qs.set('projectId', params.projectId);
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/reports/time?${qs}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return false;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `time-report-${params.from}_${params.to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+// Comments
+export type ProjectComment = {
+  id: string;
+  projectId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  user: { id: string; email: string; name: string | null; role: string };
+};
+
+export async function fetchComments(projectId: string): Promise<ApiResponse<ProjectComment[]>> {
+  return api<ProjectComment[]>(`/projects/${projectId}/comments`);
+}
+
+export async function createComment(
+  projectId: string,
+  body: { body: string }
+): Promise<ApiResponse<ProjectComment>> {
+  return api<ProjectComment>(`/projects/${projectId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteComment(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+  return api<{ deleted: boolean }>(`/comments/${id}`, { method: 'DELETE' });
+}
+
+// Project files
+export type ProjectFileRow = {
+  id: string;
+  projectId: string;
+  uploadedById: string;
+  filename: string;
+  mimeType: string | null;
+  size: number;
+  createdAt: string;
+  uploadedBy: { id: string; email: string; name: string | null };
+};
+
+export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<ProjectFileRow[]>> {
+  return api<ProjectFileRow[]>(`/projects/${projectId}/files`);
+}
+
+export async function uploadProjectFile(
+  projectId: string,
+  file: File
+): Promise<ApiResponse<ProjectFileRow>> {
+  const token = getStoredToken();
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/projects/${projectId}/files`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  return (await res.json()) as ApiResponse<ProjectFileRow>;
+}
+
+export async function deleteProjectFile(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+  return api<{ deleted: boolean }>(`/project-files/${id}`, { method: 'DELETE' });
+}
+
+export async function downloadProjectFile(fileId: string, filename?: string): Promise<boolean> {
+  const token = getStoredToken();
+  const res = await fetch(`${API_BASE}/project-files/${fileId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return false;
+  const blob = await res.blob();
+  const name =
+    filename ||
+    res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] ||
+    `file-${fileId}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}

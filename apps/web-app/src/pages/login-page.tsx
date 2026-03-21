@@ -7,6 +7,7 @@ import { useTheme } from '@botttle/ui';
 import { cn } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { login as loginApi } from '@/lib/api';
+import { BrandLogo } from '@/components/brand-logo';
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -45,7 +46,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex flex-col items-center gap-4">
-          <img src="/botttle.png" alt="botttle" className="h-14 w-14 object-contain" />
+          <BrandLogo className="h-14 w-14 object-contain" />
           <h1 className="text-2xl font-semibold text-foreground">Sign in to botttle</h1>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

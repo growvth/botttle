@@ -5,6 +5,7 @@ import { createProjectSchema, updateProjectSchema } from './schema.js';
 import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
+import { projectIdFromRequest } from '../../lib/route-params.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
   if (user.role === 'ADMIN') return true;
@@ -35,7 +36,10 @@ export async function getProject(
   reply: FastifyReply
 ): Promise<void> {
   const { user } = request as AuthenticatedRequest;
-  const id = (request.params as { id: string }).id;
+  const id = projectIdFromRequest(request);
+  if (!id) {
+    return reply.status(HttpStatus.BAD_REQUEST).send(error('VALIDATION_ERROR', 'Missing project id'));
+  }
   const allowed = await canAccessProject(user, id);
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this project'));
@@ -61,7 +65,10 @@ export async function updateProject(
   reply: FastifyReply
 ): Promise<void> {
   const { user } = request as AuthenticatedRequest;
-  const id = (request.params as { id: string }).id;
+  const id = projectIdFromRequest(request);
+  if (!id) {
+    return reply.status(HttpStatus.BAD_REQUEST).send(error('VALIDATION_ERROR', 'Missing project id'));
+  }
   const allowed = await canAccessProject(user, id);
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this project'));
@@ -79,7 +86,10 @@ export async function deleteProject(
   reply: FastifyReply
 ): Promise<void> {
   const { user } = request as AuthenticatedRequest;
-  const id = (request.params as { id: string }).id;
+  const id = projectIdFromRequest(request);
+  if (!id) {
+    return reply.status(HttpStatus.BAD_REQUEST).send(error('VALIDATION_ERROR', 'Missing project id'));
+  }
   const allowed = await canAccessProject(user, id);
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this project'));
