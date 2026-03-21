@@ -5,6 +5,7 @@ import { createClientSchema, updateClientSchema } from './schema.js';
 import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 export async function listClients(
   request: FastifyRequest,
@@ -52,8 +53,17 @@ export async function createClient(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  const { user } = request as AuthenticatedRequest;
   const body = createClientSchema.parse(request.body);
   const created = await clientService.create(body);
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'CLIENT_CREATED',
+    entityType: 'client',
+    entityId: created.id,
+    metadata: { name: created.name },
+  });
   return reply.status(201).send(success(created));
 }
 
@@ -61,12 +71,21 @@ export async function updateClient(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  const { user } = request as AuthenticatedRequest;
   const id = (request.params as { id: string }).id;
   const body = updateClientSchema.parse(request.body);
   const updated = await clientService.update(id, body);
   if (!updated) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Client not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'CLIENT_UPDATED',
+    entityType: 'client',
+    entityId: id,
+    metadata: body as Record<string, unknown>,
+  });
   return reply.send(success(updated));
 }
 
@@ -74,10 +93,18 @@ export async function deleteClient(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  const { user } = request as AuthenticatedRequest;
   const id = (request.params as { id: string }).id;
   const result = await clientService.delete(id);
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Client not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'CLIENT_DELETED',
+    entityType: 'client',
+    entityId: id,
+  });
   return reply.send(success(result));
 }

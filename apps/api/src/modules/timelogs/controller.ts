@@ -7,6 +7,7 @@ import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 import { canAccessProject } from '../../lib/project-access.js';
 import { projectIdFromRequest } from '../../lib/route-params.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 export async function listTimeLogs(
   request: FastifyRequest,
@@ -40,6 +41,14 @@ export async function createTimeLog(
   }
   const body = createTimeLogSchema.parse(request.body);
   const created = await timeLogService.create(projectId, body);
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TIME_LOG_CREATED',
+    entityType: 'time_log',
+    entityId: created.id,
+    metadata: { projectId, billable: created.billable },
+  });
   return reply.status(201).send(success(created));
 }
 
@@ -65,6 +74,14 @@ export async function stopTimeLog(
   if (!updated) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Time log not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TIME_LOG_STOPPED',
+    entityType: 'time_log',
+    entityId: id,
+    metadata: { projectId: log.projectId, durationSeconds: updated.durationSeconds },
+  });
   return reply.send(success(updated));
 }
 
@@ -89,6 +106,14 @@ export async function deleteTimeLog(
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Time log not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TIME_LOG_DELETED',
+    entityType: 'time_log',
+    entityId: id,
+    metadata: { projectId: log.projectId },
+  });
   return reply.send(success(result));
 }
 

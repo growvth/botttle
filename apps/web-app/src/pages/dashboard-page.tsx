@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FolderKanban, FileText, Users } from 'lucide-react';
+import { FolderKanban, FileText, Users, MessageSquare, Paperclip } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -325,6 +325,99 @@ export function DashboardPage() {
               )}
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <div className="rounded-lg border border-border bg-background p-4 shadow-subtle">
+                <h3 className="mb-2 text-sm font-medium text-foreground">Client collaboration (30 days)</h3>
+                {summary.clientActivity30d && summary.clientActivity30d.length > 0 ? (
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={summary.clientActivity30d.map((r) => ({
+                          name:
+                            r.clientName.length > 22 ? `${r.clientName.slice(0, 21)}…` : r.clientName,
+                          Comments: r.comments,
+                          Files: r.files,
+                        }))}
+                        margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={108}
+                          tick={{ fontSize: 11 }}
+                          className="fill-foreground-muted"
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Legend />
+                        <Bar dataKey="Comments" stackId="collab" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                        <Bar
+                          dataKey="Files"
+                          stackId="collab"
+                          fill="#22c55e"
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <p className="text-sm text-foreground-muted">
+                    No comments or uploads on client projects in the last 30 days.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-border bg-background p-4 shadow-subtle">
+                <h3 className="mb-2 text-sm font-medium text-foreground">Latest activity</h3>
+                {summary.collaborationFeed && summary.collaborationFeed.length > 0 ? (
+                  <ul className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                    {summary.collaborationFeed.map((ev, i) => (
+                      <li key={`${ev.at}-${ev.projectId}-${i}`} className="text-sm">
+                        <div className="flex flex-wrap items-center gap-1.5 text-foreground-muted">
+                          {ev.type === 'comment' ? (
+                            <MessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          ) : (
+                            <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          )}
+                          <span className="text-xs">
+                            {new Date(ev.at).toLocaleString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-foreground">
+                          <span className="font-medium">{ev.actorLabel}</span>
+                          {ev.type === 'comment' ? ' commented on ' : ' uploaded to '}
+                          <Link
+                            to={`/projects/${ev.projectId}`}
+                            className="text-primary hover:underline"
+                          >
+                            {ev.projectTitle}
+                          </Link>
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-foreground-muted">{ev.summary}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-foreground-muted">No recent comments or file uploads yet.</p>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

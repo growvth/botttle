@@ -6,7 +6,7 @@ import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 import { canAccessProject } from '../../lib/project-access.js';
 import { projectIdFromRequest } from '../../lib/route-params.js';
-import { createReadStream, existsSync } from 'node:fs';
+import { recordAudit } from '../../lib/audit-log.js';
 
 export async function listProjectFiles(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const { user } = request as AuthenticatedRequest;
@@ -54,6 +54,11 @@ export async function uploadProjectFile(request: FastifyRequest, reply: FastifyR
     if (msg === 'FILE_TOO_LARGE') {
       return reply.status(HttpStatus.UNPROCESSABLE_ENTITY).send(error('VALIDATION_ERROR', 'File too large (max 10MB)'));
     }
+    if (msg === 'S3_NOT_CONFIGURED') {
+      return reply
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .send(error('INTERNAL_ERROR', 'S3 is not configured (set S3_BUCKET, AWS credentials, FILE_STORAGE=s3)'));
+    }
     throw e;
   }
 }
@@ -76,6 +81,14 @@ export async function deleteProjectFile(request: FastifyRequest, reply: FastifyR
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'File not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'PROJECT_FILE_DELETED',
+    entityType: 'project_file',
+    entityId: id,
+    metadata: { projectId: row.projectId, filename: row.filename },
+  });
   return reply.send(success(result));
 }
 
@@ -90,13 +103,20 @@ export async function downloadProjectFile(request: FastifyRequest, reply: Fastif
   if (!allowed) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot access this file'));
   }
-  const full = projectFileService.getAbsolutePath(row.storagePath);
-  if (!existsSync(full)) {
+  if (row.storageProvider === 'LOCAL' && !projectFileService.fileExistsLocally(row.storagePath)) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'File missing on disk'));
   }
-  const mime = row.mimeType ?? 'application/octet-stream';
-  return reply
-    .header('Content-Type', mime)
-    .header('Content-Disposition', `attachment; filename="${encodeURIComponent(row.filename)}"`)
-    .send(createReadStream(full));
+  try {
+    const stream = await projectFileService.getReadStreamForRow({
+      storagePath: row.storagePath,
+      storageProvider: row.storageProvider,
+    });
+    const mime = row.mimeType ?? 'application/octet-stream';
+    return reply
+      .header('Content-Type', mime)
+      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(row.filename)}"`)
+      .send(stream);
+  } catch {
+    return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'File not available'));
+  }
 }

@@ -1,5 +1,21 @@
 import { prisma } from '@botttle/db';
 
+export type ClientActivityRow = {
+  clientId: string;
+  clientName: string;
+  comments: number;
+  files: number;
+};
+
+export type CollaborationFeedItem = {
+  type: 'comment' | 'file';
+  at: string;
+  projectId: string;
+  projectTitle: string;
+  summary: string;
+  actorLabel: string;
+};
+
 export type ReportsSummary = {
   projectCountByStatus: { status: string; count: number }[];
   invoiceCountByStatus: { status: string; count: number; total: number }[];
@@ -12,6 +28,10 @@ export type ReportsSummary = {
   };
   totalRevenue: number;
   tasks: { completed: number; total: number };
+  /** Admin only: comments + file uploads per client in the last 30 days */
+  clientActivity30d?: ClientActivityRow[];
+  /** Admin only: recent comments and file uploads across projects */
+  collaborationFeed?: CollaborationFeedItem[];
 };
 
 export type TimeReportDay = {
@@ -50,6 +70,129 @@ function buildTimeWhere(
   if (role === 'ADMIN') return {};
   if (!clientId) return { project: { clientId: '__none__' } };
   return { project: { clientId } };
+}
+
+function clipSummary(text: string, max: number): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+async function buildClientActivity30d(): Promise<ClientActivityRow[]> {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 30);
+
+  const [commentGroups, fileGroups, clients] = await Promise.all([
+    prisma.comment.groupBy({
+      by: ['projectId'],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.projectFile.groupBy({
+      by: ['projectId'],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.client.findMany({ select: { id: true, name: true } }),
+  ]);
+
+  const projectIds = [
+    ...new Set([
+      ...commentGroups.map((g) => g.projectId),
+      ...fileGroups.map((g) => g.projectId),
+    ]),
+  ];
+
+  const projClient = new Map<string, string>();
+  if (projectIds.length > 0) {
+    const projects = await prisma.project.findMany({
+      where: { id: { in: projectIds } },
+      select: { id: true, clientId: true },
+    });
+    for (const p of projects) projClient.set(p.id, p.clientId);
+  }
+
+  const acc = new Map<string, { comments: number; files: number }>();
+  for (const c of clients) acc.set(c.id, { comments: 0, files: 0 });
+
+  for (const g of commentGroups) {
+    const cid = projClient.get(g.projectId);
+    if (!cid) continue;
+    const row = acc.get(cid);
+    if (row) row.comments += g._count._all;
+  }
+  for (const g of fileGroups) {
+    const cid = projClient.get(g.projectId);
+    if (!cid) continue;
+    const row = acc.get(cid);
+    if (row) row.files += g._count._all;
+  }
+
+  return clients
+    .map((c) => {
+      const row = acc.get(c.id)!;
+      return {
+        clientId: c.id,
+        clientName: c.name,
+        comments: row.comments,
+        files: row.files,
+      };
+    })
+    .filter((r) => r.comments + r.files > 0)
+    .sort((a, b) => b.comments + b.files - (a.comments + a.files))
+    .slice(0, 12);
+}
+
+async function buildCollaborationFeed(limit: number): Promise<CollaborationFeedItem[]> {
+  const [comments, files] = await Promise.all([
+    prisma.comment.findMany({
+      take: 24,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        project: { select: { id: true, title: true } },
+      },
+    }),
+    prisma.projectFile.findMany({
+      take: 24,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        uploadedBy: { select: { name: true, email: true } },
+        project: { select: { id: true, title: true } },
+      },
+    }),
+  ]);
+
+  type Entry = { t: number; item: CollaborationFeedItem };
+  const merged: Entry[] = [];
+  for (const c of comments) {
+    merged.push({
+      t: c.createdAt.getTime(),
+      item: {
+        type: 'comment',
+        at: c.createdAt.toISOString(),
+        projectId: c.projectId,
+        projectTitle: c.project.title,
+        summary: clipSummary(c.body, 140),
+        actorLabel: c.user.name?.trim() || c.user.email,
+      },
+    });
+  }
+  for (const f of files) {
+    merged.push({
+      t: f.createdAt.getTime(),
+      item: {
+        type: 'file',
+        at: f.createdAt.toISOString(),
+        projectId: f.projectId,
+        projectTitle: f.project.title,
+        summary: f.filename,
+        actorLabel: f.uploadedBy.name?.trim() || f.uploadedBy.email,
+      },
+    });
+  }
+  merged.sort((a, b) => b.t - a.t);
+  return merged.slice(0, limit).map((x) => x.item);
 }
 
 export const reportsService = {
@@ -117,7 +260,7 @@ export const reportsService = {
     const billable = billableAgg._sum?.durationSeconds ?? 0;
     const nonBillable = nonBillableAgg._sum?.durationSeconds ?? 0;
 
-    return {
+    const base: ReportsSummary = {
       projectCountByStatus: projectGroups.map((r) => ({
         status: r.status,
         count: (r as { _count: { _all: number } })._count._all,
@@ -136,6 +279,17 @@ export const reportsService = {
       totalRevenue: payAgg._sum?.amount ?? 0,
       tasks: { completed: taskDone, total: taskTotal },
     };
+
+    if (role !== 'ADMIN') {
+      return base;
+    }
+
+    const [clientActivity30d, collaborationFeed] = await Promise.all([
+      buildClientActivity30d(),
+      buildCollaborationFeed(12),
+    ]);
+
+    return { ...base, clientActivity30d, collaborationFeed };
   },
 
   async timeReport(

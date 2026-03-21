@@ -12,6 +12,14 @@ const STATUS_STYLE: Record<string, string> = {
   OVERDUE: 'bg-destructive/10 text-destructive',
 };
 
+const CLIENT_STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Draft',
+  SENT: 'Awaiting payment',
+  PARTIAL: 'Partially paid',
+  PAID: 'Paid',
+  OVERDUE: 'Past due',
+};
+
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString(undefined, {
     year: 'numeric',
@@ -109,7 +117,7 @@ export function InvoicesListPage() {
                         STATUS_STYLE[inv.status] ?? 'bg-muted text-foreground-muted'
                       )}
                     >
-                      {inv.status}
+                      {isAdmin ? inv.status : CLIENT_STATUS_LABEL[inv.status] ?? inv.status}
                     </span>
                   </td>
                 </tr>

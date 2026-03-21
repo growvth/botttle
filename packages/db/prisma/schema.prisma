@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -26,8 +26,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  comments      Comment[]
-  uploadedFiles ProjectFile[] @relation("ProjectFileUploadedBy")
+  comments       Comment[]
+  uploadedFiles  ProjectFile[] @relation("ProjectFileUploadedBy")
+  notifications  Notification[]
+  auditLogs      AuditLog[]
 
   @@map("users")
 }
@@ -130,18 +132,20 @@ enum PaymentStatus {
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  projectId   String        @map("project_id")
-  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  number      String        @unique
-  status      InvoiceStatus @default(DRAFT)
-  dueDate     DateTime      @map("due_date")
-  currency    String        @default("USD")
-  taxRate     Float         @default(0) @map("tax_rate")
-  subtotal    Float         @default(0)
-  total       Float         @default(0)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id             String        @id @default(cuid())
+  projectId      String        @map("project_id")
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number         String        @unique
+  status         InvoiceStatus @default(DRAFT)
+  dueDate        DateTime      @map("due_date")
+  currency       String        @default("USD")
+  taxRate        Float         @default(0) @map("tax_rate")
+  subtotal       Float         @default(0)
+  total          Float         @default(0)
+  paymentUrl     String?       @map("payment_url")
+  lemonVariantId String?       @map("lemon_variant_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   items    InvoiceItem[]
   payments Payment[]
@@ -210,17 +214,62 @@ model Comment {
 }
 
 model ProjectFile {
-  id             String   @id @default(cuid())
-  projectId      String   @map("project_id")
-  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  uploadedById   String   @map("uploaded_by_id")
-  uploadedBy     User     @relation("ProjectFileUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
-  filename       String
-  mimeType       String?  @map("mime_type")
-  size           Int
-  storagePath    String   @map("storage_path")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id              String               @id @default(cuid())
+  projectId       String               @map("project_id")
+  project         Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedById    String               @map("uploaded_by_id")
+  uploadedBy      User                 @relation("ProjectFileUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  filename        String
+  mimeType        String?              @map("mime_type")
+  size            Int
+  storagePath     String               @map("storage_path")
+  storageProvider FileStorageProvider  @default(LOCAL) @map("storage_provider")
+  createdAt       DateTime             @default(now()) @map("created_at")
 
   @@index([projectId])
   @@map("project_files")
+}
+
+enum NotificationKind {
+  COMMENT
+  FILE_UPLOAD
+}
+
+enum FileStorageProvider {
+  LOCAL
+  S3
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      NotificationKind
+  title     String
+  body      String?
+  linkHref  String?          @map("link_href")
+  projectId String?         @map("project_id")
+  readAt    DateTime?       @map("read_at")
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?  @map("actor_user_id")
+  actor        User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String   @map("entity_id")
+  metadata     Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@map("audit_logs")
 }

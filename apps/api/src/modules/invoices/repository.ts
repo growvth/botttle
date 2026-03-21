@@ -16,9 +16,12 @@ export const invoiceRepository = {
     });
   },
 
-  findByProjectId(projectId: string) {
+  findByProjectId(projectId: string, opts?: { excludeDrafts?: boolean }) {
     return prisma.invoice.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        ...(opts?.excludeDrafts ? { status: { not: 'DRAFT' as InvoiceStatus } } : {}),
+      },
       include: { project: true, _count: { select: { payments: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -33,7 +36,7 @@ export const invoiceRepository = {
 
   findManyByClientId(clientId: string) {
     return prisma.invoice.findMany({
-      where: { project: { clientId } },
+      where: { project: { clientId }, status: { not: 'DRAFT' } },
       include: { project: { include: { client: true } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -99,6 +102,20 @@ export const invoiceRepository = {
         externalId: data.externalId ?? null,
       },
       include: { invoice: true },
+    });
+  },
+
+  updatePaymentFields(
+    id: string,
+    data: { paymentUrl?: string | null; lemonVariantId?: string | null }
+  ) {
+    return prisma.invoice.update({
+      where: { id },
+      data: {
+        ...(data.paymentUrl !== undefined ? { paymentUrl: data.paymentUrl } : {}),
+        ...(data.lemonVariantId !== undefined ? { lemonVariantId: data.lemonVariantId } : {}),
+      },
+      include: { project: { include: { client: true } }, items: true, payments: true },
     });
   },
 };

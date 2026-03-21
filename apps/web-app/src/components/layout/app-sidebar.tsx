@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, Users, FileText, Sun, Moon, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, FileText, ScrollText, Sun, Moon, LogOut } from 'lucide-react';
 import { cn, useTheme } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { BrandLogo } from '@/components/brand-logo';
@@ -9,6 +9,7 @@ const nav = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/invoices', label: 'Invoices', icon: FileText },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/audit-logs', label: 'Audit log', icon: ScrollText },
 ] as const;
 
 function isNavActive(pathname: string, to: string): boolean {
@@ -21,6 +22,10 @@ export function AppSidebar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
+  const navItems = isAdmin
+    ? nav
+    : nav.filter((item) => item.to !== '/clients' && item.to !== '/audit-logs');
 
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-background">
@@ -29,7 +34,7 @@ export function AppSidebar() {
         <span className="font-semibold text-foreground">botttle</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-2">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}

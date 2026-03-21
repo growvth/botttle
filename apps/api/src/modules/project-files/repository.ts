@@ -1,4 +1,4 @@
-import { prisma } from '@botttle/db';
+import { prisma, type FileStorageProvider } from '@botttle/db';
 
 export const projectFileRepository = {
   findManyByProjectId(projectId: string) {
@@ -18,6 +18,7 @@ export const projectFileRepository = {
     mimeType: string | null;
     size: number;
     storagePath: string;
+    storageProvider: FileStorageProvider;
   }) {
     return prisma.projectFile.create({
       data,

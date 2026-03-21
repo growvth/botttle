@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Play, Square } from 'lucide-react';
+import { ArrowLeft, Play, Square, BarChart3 } from 'lucide-react';
 import { cn } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -23,11 +23,13 @@ import {
   deleteProjectFile,
   downloadProjectFile,
   downloadTimeReportCsv,
+  fetchInvoicesByProject,
   type Milestone,
   type Task,
   type TimeLog,
   type ProjectComment,
   type ProjectFileRow,
+  type Invoice,
 } from '@/lib/api';
 
 const PROJECT_STATUS = ['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED'] as const;
@@ -79,6 +81,13 @@ export function ProjectDetailPage() {
   });
   const files = filesRes?.success ? filesRes.data : [];
   const filesLoadError = filesRes && !filesRes.success ? filesRes.error.message : null;
+
+  const { data: projectInvoicesRes } = useQuery({
+    queryKey: ['projectInvoices', projectId],
+    queryFn: () => fetchInvoicesByProject(projectId!),
+    enabled: !!projectId,
+  });
+  const projectInvoices = projectInvoicesRes?.success ? projectInvoicesRes.data : [];
 
   const updateProjectMutation = useMutation({
     mutationFn: (body: { status: string }) => updateProject(projectId!, body),
@@ -134,13 +143,24 @@ export function ProjectDetailPage() {
               ))}
             </select>
           )}
-          {project.client && (
+          {isAdmin && project.client && (
             <span className="text-foreground-muted">Client: {project.client.name}</span>
           )}
         </div>
+        {isAdmin && (
+          <Link
+            to={`/projects/${projectId}/reports`}
+            className="mt-3 inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+          >
+            <BarChart3 className="h-4 w-4" aria-hidden />
+            Time reports
+          </Link>
+        )}
       </div>
 
-      <TimeLogsSection projectId={projectId} logs={timeLogs} />
+      <ProjectInvoicesSection projectId={projectId} invoices={projectInvoices} isAdmin={isAdmin} />
+
+      {isAdmin && <TimeLogsSection projectId={projectId} logs={timeLogs} />}
 
       <CommentsSection
         projectId={projectId}
@@ -148,21 +168,28 @@ export function ProjectDetailPage() {
         loadError={commentsLoadError}
       />
 
-      <FilesSection projectId={projectId} files={files} loadError={filesLoadError} />
+      <FilesSection
+        projectId={projectId}
+        files={files}
+        loadError={filesLoadError}
+        readOnly={!isAdmin}
+      />
 
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium text-foreground">Milestones</h2>
-          <button
-            type="button"
-            onClick={() => setAddingMilestone((s) => !s)}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
-          >
-            {addingMilestone ? 'Cancel' : 'Add milestone'}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setAddingMilestone((s) => !s)}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              {addingMilestone ? 'Cancel' : 'Add milestone'}
+            </button>
+          )}
         </div>
 
-        {addingMilestone && (
+        {isAdmin && addingMilestone && (
           <AddMilestoneForm
             projectId={projectId}
             onDone={() => {
@@ -181,6 +208,7 @@ export function ProjectDetailPage() {
                 key={m.id}
                 projectId={projectId}
                 milestone={m}
+                readOnly={!isAdmin}
                 addingTask={addingTaskFor === m.id}
                 onToggleAddTask={() => setAddingTaskFor((id) => (id === m.id ? null : m.id))}
                 onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['project', projectId] })}
@@ -201,6 +229,69 @@ function formatDuration(seconds: number): string {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m ${secs}s`;
   return `${secs}s`;
+}
+
+const INV_STATUS_STYLE: Record<string, string> = {
+  DRAFT: 'bg-muted text-foreground-muted',
+  SENT: 'bg-primary-pale text-primary',
+  PARTIAL: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  PAID: 'bg-success-muted text-success',
+  OVERDUE: 'bg-destructive/10 text-destructive',
+};
+
+const INV_CLIENT_LABEL: Record<string, string> = {
+  DRAFT: 'Draft',
+  SENT: 'Awaiting payment',
+  PARTIAL: 'Partially paid',
+  PAID: 'Paid',
+  OVERDUE: 'Past due',
+};
+
+function formatMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currency || 'USD',
+  }).format(amount);
+}
+
+function ProjectInvoicesSection({
+  invoices,
+  isAdmin,
+}: {
+  projectId: string;
+  invoices: Invoice[];
+  isAdmin: boolean;
+}) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-lg font-medium text-foreground">Invoices</h2>
+      {invoices.length === 0 ? (
+        <p className="text-sm text-foreground-muted">No invoices for this project yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {invoices.map((inv) => (
+            <li
+              key={inv.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <Link to={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+                {inv.number}
+              </Link>
+              <span className="text-foreground-muted">{formatMoney(inv.total, inv.currency)}</span>
+              <span
+                className={cn(
+                  'rounded px-1.5 py-0.5 text-xs font-medium',
+                  INV_STATUS_STYLE[inv.status] ?? 'bg-muted text-foreground-muted'
+                )}
+              >
+                {isAdmin ? inv.status : INV_CLIENT_LABEL[inv.status] ?? inv.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function TimeLogsSection({ projectId, logs }: { projectId: string; logs: TimeLog[] }) {
@@ -424,6 +515,8 @@ function CommentsSection({
     onSuccess: (res) => {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: ['comments', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        queryClient.invalidateQueries({ queryKey: ['reports', 'summary'] });
         setBody('');
         setPostError(null);
       } else {
@@ -518,10 +611,12 @@ function FilesSection({
   projectId,
   files,
   loadError,
+  readOnly,
 }: {
   projectId: string;
   files: ProjectFileRow[];
   loadError: string | null;
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -537,6 +632,7 @@ function FilesSection({
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-medium text-foreground">Files</h2>
+        {!readOnly && (
         <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:bg-muted">
           {uploading ? 'Uploading…' : 'Upload'}
           <input
@@ -554,6 +650,8 @@ function FilesSection({
                 const res = await uploadProjectFile(projectId, f);
                 if (res.success) {
                   queryClient.invalidateQueries({ queryKey: ['projectFiles', projectId] });
+                  queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                  queryClient.invalidateQueries({ queryKey: ['reports', 'summary'] });
                 } else {
                   setUploadError(res.error.message);
                 }
@@ -565,6 +663,7 @@ function FilesSection({
             }}
           />
         </label>
+        )}
       </div>
       {loadError && (
         <p className="text-sm text-destructive" role="alert">
@@ -663,12 +762,14 @@ function AddMilestoneForm({ projectId, onDone }: { projectId: string; onDone: ()
 function MilestoneCard({
   projectId,
   milestone,
+  readOnly,
   addingTask,
   onToggleAddTask,
   onTasksChange,
 }: {
   projectId: string;
   milestone: Milestone;
+  readOnly?: boolean;
   addingTask: boolean;
   onToggleAddTask: () => void;
   onTasksChange: () => void;
@@ -697,7 +798,9 @@ function MilestoneCard({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {editingProgress ? (
+          {readOnly ? (
+            <span className="text-sm text-foreground-muted">{milestone.completionPercentage}%</span>
+          ) : editingProgress ? (
             <>
               <input
                 type="range"
@@ -720,25 +823,27 @@ function MilestoneCard({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => setEditingProgress(true)}
-              className="text-sm text-foreground-muted hover:text-foreground"
-            >
-              {milestone.completionPercentage}%
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setEditingProgress(true)}
+                className="text-sm text-foreground-muted hover:text-foreground"
+              >
+                {milestone.completionPercentage}%
+              </button>
+              <button
+                type="button"
+                onClick={onToggleAddTask}
+                className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
+              >
+                {addingTask ? 'Cancel' : 'Add task'}
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={onToggleAddTask}
-            className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
-          >
-            {addingTask ? 'Cancel' : 'Add task'}
-          </button>
         </div>
       </div>
 
-      {addingTask && (
+      {!readOnly && addingTask && (
         <AddTaskForm
           projectId={projectId}
           milestoneId={milestone.id}
@@ -754,6 +859,7 @@ function MilestoneCard({
           <TaskItem
             key={t.id}
             task={t}
+            readOnly={readOnly}
             onUpdate={() => queryClient.invalidateQueries({ queryKey: ['project', projectId] })}
           />
         ))}
@@ -810,12 +916,13 @@ function AddTaskForm({
 
 function TaskItem({
   task,
+  readOnly,
   onUpdate,
 }: {
   task: Task;
+  readOnly?: boolean;
   onUpdate: () => void;
 }) {
-  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState(task.status);
 
@@ -826,7 +933,14 @@ function TaskItem({
 
   return (
     <li className="flex items-center gap-2 text-sm">
-      {editing ? (
+      {readOnly ? (
+        <>
+          <span className={cn(task.status === 'COMPLETED' && 'line-through text-foreground-muted')}>
+            {task.title}
+          </span>
+          <span className="text-foreground-muted">({task.status})</span>
+        </>
+      ) : editing ? (
         <>
           <select
             value={status}

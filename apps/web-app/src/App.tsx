@@ -10,6 +10,8 @@ import { ClientsListPage } from '@/pages/clients-list-page';
 import { InvoicesListPage } from '@/pages/invoices-list-page';
 import { InvoiceDetailPage } from '@/pages/invoice-detail-page';
 import { InvoiceCreatePage } from '@/pages/invoice-create-page';
+import { ProjectReportsPage } from '@/pages/project-reports-page';
+import { AuditLogsPage } from '@/pages/audit-logs-page';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
@@ -22,6 +24,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
   if (token) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role !== 'ADMIN') {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -57,11 +67,34 @@ export default function App() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="projects" element={<ProjectsListPage />} />
+          <Route path="projects/:projectId/reports" element={<ProjectReportsPage />} />
           <Route path="projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="invoices" element={<InvoicesListPage />} />
-          <Route path="invoices/new" element={<InvoiceCreatePage />} />
+          <Route
+            path="invoices/new"
+            element={
+              <AdminRoute>
+                <InvoiceCreatePage />
+              </AdminRoute>
+            }
+          />
           <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-          <Route path="clients" element={<ClientsListPage />} />
+          <Route
+            path="clients"
+            element={
+              <AdminRoute>
+                <ClientsListPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="audit-logs"
+            element={
+              <AdminRoute>
+                <AuditLogsPage />
+              </AdminRoute>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

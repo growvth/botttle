@@ -6,6 +6,7 @@ import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 import { projectIdFromRequest } from '../../lib/route-params.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
   if (user.role === 'ADMIN') return true;
@@ -55,8 +56,17 @@ export async function createProject(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  const { user } = request as AuthenticatedRequest;
   const body = createProjectSchema.parse(request.body);
   const created = await projectService.create(body);
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'PROJECT_CREATED',
+    entityType: 'project',
+    entityId: created.id,
+    metadata: { title: created.title, clientId: created.clientId },
+  });
   return reply.status(201).send(success(created));
 }
 
@@ -78,6 +88,14 @@ export async function updateProject(
   if (!updated) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Project not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'PROJECT_UPDATED',
+    entityType: 'project',
+    entityId: id,
+    metadata: body as Record<string, unknown>,
+  });
   return reply.send(success(updated));
 }
 
@@ -98,5 +116,12 @@ export async function deleteProject(
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Project not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'PROJECT_DELETED',
+    entityType: 'project',
+    entityId: id,
+  });
   return reply.send(success(result));
 }

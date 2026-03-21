@@ -1,0 +1,13 @@
+node_modules
+.git
+**/.turbo
+**/dist
+apps/api/uploads
+*.db
+*.db-journal
+.env
+.env.*
+!.env.example
+apps/web-app/dist
+coverage
+*.log

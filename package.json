@@ -10,10 +10,13 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "dev:api": "turbo run dev --filter=api",
+    "dev:worker": "turbo run dev:worker --filter=api",
     "dev:web": "turbo run dev --filter=web-app",
     "dev:marketing": "turbo run dev --filter=marketing",
     "db:generate": "turbo run generate --filter=db",
     "db:migrate": "turbo run migrate --filter=db",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
     "lint": "turbo run lint",
     "test": "turbo run test"
   },

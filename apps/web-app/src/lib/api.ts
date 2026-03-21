@@ -277,6 +277,15 @@ export type Invoice = {
   project?: { id: string; title: string; client?: { id: string; name: string; email: string | null } };
   items?: InvoiceItem[];
   payments?: Payment[];
+  /** Set on GET /invoices/:id */
+  totalPaid?: number;
+  balanceDue?: number;
+  /** Checkout URL for clients when INVOICE_PAYMENT_LINK_TEMPLATE is configured */
+  paymentLink?: string | null;
+  /** Admin: saved client checkout URL (optional) */
+  paymentUrl?: string | null;
+  /** Admin: Lemon variant id for this invoice (optional; falls back to env default) */
+  lemonVariantId?: string | null;
 };
 
 export async function fetchInvoices(): Promise<ApiResponse<Invoice[]>> {
@@ -311,6 +320,20 @@ export async function updateInvoiceStatus(
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
+}
+
+export async function updateInvoicePaymentSettings(
+  id: string,
+  body: { paymentUrl?: string; lemonVariantId?: string }
+): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>(`/invoices/${id}/payment-settings`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createInvoiceLemonCheckout(id: string): Promise<ApiResponse<Invoice>> {
+  return api<Invoice>(`/invoices/${id}/checkout/lemon`, { method: 'POST' });
 }
 
 export async function addPayment(
@@ -386,6 +409,22 @@ export async function deleteTimeLog(id: string): Promise<ApiResponse<{ deleted: 
 }
 
 // Reports
+export type ClientActivityRow = {
+  clientId: string;
+  clientName: string;
+  comments: number;
+  files: number;
+};
+
+export type CollaborationFeedItem = {
+  type: 'comment' | 'file';
+  at: string;
+  projectId: string;
+  projectTitle: string;
+  summary: string;
+  actorLabel: string;
+};
+
 export type ReportsSummary = {
   projectCountByStatus: { status: string; count: number }[];
   invoiceCountByStatus: { status: string; count: number; total: number }[];
@@ -393,6 +432,8 @@ export type ReportsSummary = {
   timeSeconds: { total: number; billable: number; nonBillable: number };
   totalRevenue: number;
   tasks: { completed: number; total: number };
+  clientActivity30d?: ClientActivityRow[];
+  collaborationFeed?: CollaborationFeedItem[];
 };
 
 export type TimeReportDay = {
@@ -412,6 +453,71 @@ export type TimeReportRow = {
 
 export async function fetchReportsSummary(): Promise<ApiResponse<ReportsSummary>> {
   return api<ReportsSummary>('/reports/summary');
+}
+
+// Notifications
+export type AppNotification = {
+  id: string;
+  userId: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  linkHref: string | null;
+  projectId: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export async function fetchNotifications(params?: {
+  limit?: number;
+}): Promise<ApiResponse<{ items: AppNotification[]; unreadCount: number }>> {
+  const qs = params?.limit != null ? `?limit=${params.limit}` : '';
+  return api<{ items: AppNotification[]; unreadCount: number }>(`/notifications${qs}`);
+}
+
+export async function fetchNotificationUnreadCount(): Promise<ApiResponse<{ unreadCount: number }>> {
+  return api<{ unreadCount: number }>('/notifications/unread-count');
+}
+
+export async function markNotificationRead(id: string): Promise<ApiResponse<{ ok: boolean }>> {
+  return api<{ ok: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export async function markAllNotificationsRead(): Promise<ApiResponse<{ ok: boolean }>> {
+  return api<{ ok: boolean }>('/notifications/read-all', { method: 'POST' });
+}
+
+// Audit logs (admin)
+export type AuditLogRow = {
+  id: string;
+  actorUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: unknown;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  actor: { id: string; email: string; name: string | null } | null;
+};
+
+export async function fetchAuditLogs(params: {
+  take?: number;
+  skip?: number;
+  action?: string;
+  entityType?: string;
+}): Promise<
+  ApiResponse<{ items: AuditLogRow[]; total: number; take: number; skip: number }>
+> {
+  const qs = new URLSearchParams();
+  if (params.take != null) qs.set('take', String(params.take));
+  if (params.skip != null) qs.set('skip', String(params.skip));
+  if (params.action) qs.set('action', params.action);
+  if (params.entityType) qs.set('entityType', params.entityType);
+  const q = qs.toString();
+  return api<{ items: AuditLogRow[]; total: number; take: number; skip: number }>(
+    `/audit-logs${q ? `?${q}` : ''}`
+  );
 }
 
 export async function fetchReportsTime(params: {

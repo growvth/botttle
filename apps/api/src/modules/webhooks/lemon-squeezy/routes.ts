@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@botttle/db';
 import { invoiceService } from '../../invoices/service.js';
+import { recordAudit } from '../../../lib/audit-log.js';
 
 function verifySignature(rawBody: Buffer, signatureHeader: string | undefined, secret: string): boolean {
   if (!signatureHeader || !secret) return false;
@@ -80,6 +81,14 @@ export async function lemonSqueezyWebhookRoutes(app: FastifyInstance): Promise<v
               amount,
               externalId,
               paidAt: new Date(),
+            });
+            recordAudit({
+              request,
+              actorUserId: null,
+              action: 'INVOICE_PAYMENT_WEBHOOK',
+              entityType: 'invoice',
+              entityId: invoiceId,
+              metadata: { provider: 'lemon_squeezy', orderId, amount },
             });
           }
         }

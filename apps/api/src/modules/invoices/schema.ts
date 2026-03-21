@@ -33,3 +33,13 @@ export const createPaymentSchema = z.object({
   paidAt: z.string().datetime().optional().or(z.date()),
 });
 export type CreatePaymentBody = z.infer<typeof createPaymentSchema>;
+
+export const updateInvoicePaymentSettingsSchema = z
+  .object({
+    paymentUrl: z.union([z.string().url(), z.literal('')]).optional(),
+    lemonVariantId: z.union([z.string().min(1).max(120), z.literal('')]).optional(),
+  })
+  .refine((d) => d.paymentUrl !== undefined || d.lemonVariantId !== undefined, {
+    message: 'At least one of paymentUrl or lemonVariantId is required',
+  });
+export type UpdateInvoicePaymentSettingsBody = z.infer<typeof updateInvoicePaymentSettingsSchema>;

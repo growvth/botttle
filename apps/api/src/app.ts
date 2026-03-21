@@ -16,6 +16,8 @@ import { timeLogNestedRoutes, timeLogRoutes } from './modules/timelogs/routes.js
 import { commentNestedRoutes, commentRoutes } from './modules/comments/routes.js';
 import { projectFileNestedRoutes, projectFileRoutes } from './modules/project-files/routes.js';
 import { reportsRoutes } from './modules/reports/routes.js';
+import { notificationRoutes } from './modules/notifications/routes.js';
+import { auditLogRoutes } from './modules/audit-logs/routes.js';
 import { lemonSqueezyWebhookRoutes } from './modules/webhooks/lemon-squeezy/routes.js';
 
 export async function buildApp() {
@@ -69,6 +71,8 @@ export async function buildApp() {
   await app.register(commentRoutes, { prefix: '/api/comments' });
   await app.register(projectFileRoutes, { prefix: '/api/project-files' });
   await app.register(reportsRoutes, { prefix: '/api/reports' });
+  await app.register(notificationRoutes, { prefix: '/api/notifications' });
+  await app.register(auditLogRoutes, { prefix: '/api/audit-logs' });
   await app.register(lemonSqueezyWebhookRoutes, { prefix: '/api/webhooks/lemon-squeezy' });
 
   return app;

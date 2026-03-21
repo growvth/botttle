@@ -6,6 +6,7 @@ import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 import { canAccessProject } from '../../lib/project-access.js';
 import { projectIdFromRequest } from '../../lib/route-params.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 export async function listComments(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const { user } = request as AuthenticatedRequest;
@@ -46,5 +47,14 @@ export async function deleteComment(request: FastifyRequest, reply: FastifyReply
   if (result === false) {
     return reply.status(HttpStatus.FORBIDDEN).send(error('FORBIDDEN', 'Cannot delete this comment'));
   }
+  const del = result as { deleted: true; projectId: string; commentId: string };
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'COMMENT_DELETED',
+    entityType: 'comment',
+    entityId: del.commentId,
+    metadata: { projectId: del.projectId },
+  });
   return reply.send(success(result));
 }

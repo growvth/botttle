@@ -5,6 +5,7 @@ import { createTaskSchema, updateTaskSchema } from './schema.js';
 import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
   if (user.role === 'ADMIN') return true;
@@ -77,6 +78,14 @@ export async function createTask(
   }
   const body = createTaskSchema.parse(request.body);
   const created = await taskService.create(milestoneId, body);
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TASK_CREATED',
+    entityType: 'task',
+    entityId: created.id,
+    metadata: { milestoneId, projectId: milestone.projectId, title: created.title },
+  });
   return reply.status(201).send(success(created));
 }
 
@@ -99,6 +108,14 @@ export async function updateTask(
   if (!updated) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Task not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TASK_UPDATED',
+    entityType: 'task',
+    entityId: id,
+    metadata: { projectId: found.milestone.projectId, ...body } as Record<string, unknown>,
+  });
   return reply.send(success(updated));
 }
 
@@ -120,5 +137,13 @@ export async function deleteTask(
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Task not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'TASK_DELETED',
+    entityType: 'task',
+    entityId: id,
+    metadata: { projectId: found.milestone.projectId },
+  });
   return reply.send(success(result));
 }

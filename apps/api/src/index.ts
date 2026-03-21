@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 
 // Load .env from api package dir so DATABASE_URL is set when run via turbo from root
@@ -18,32 +18,37 @@ if (existsSync(envPath)) {
   }
 }
 
-// Default to SQLite for local dev so register/login work without setting up Postgres
-const defaultDbDir = path.resolve(process.cwd(), '../../packages/db/prisma');
-const defaultDbUrl = `file:${path.join(defaultDbDir, 'dev.db')}`;
-const usingDefaultDb = !process.env['DATABASE_URL'];
-if (usingDefaultDb) {
-  process.env['DATABASE_URL'] = defaultDbUrl;
-}
-
-// Ensure SQLite DB and tables exist when using default dev DB
-if (usingDefaultDb) {
-  const dbPkg = path.resolve(process.cwd(), '../../packages/db');
-  const r = spawnSync('bunx', ['prisma', 'migrate', 'deploy'], {
-    cwd: dbPkg,
-    env: { ...process.env, DATABASE_URL: defaultDbUrl },
-    stdio: 'pipe',
-  });
-  if (r.status !== 0 && r.stderr?.length) {
-    console.error('Prisma migrate deploy failed:', r.stderr.toString());
-  }
+if (!process.env['DATABASE_URL']?.trim()) {
+  console.error(
+    'DATABASE_URL is not set. For local dev: start Postgres (e.g. `docker compose up -d postgres`) and set DATABASE_URL in apps/api/.env (see .env.example).'
+  );
+  process.exit(1);
 }
 
 import { buildApp } from './app.js';
 
 const PORT = Number(process.env['PORT']) || 3001;
 
+function runMigrationsOnBootIfEnabled(): void {
+  if (process.env['RUN_MIGRATIONS_ON_BOOT'] !== 'true') return;
+  const dbDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../../packages/db');
+  if (!existsSync(dbDir)) {
+    console.error(`RUN_MIGRATIONS_ON_BOOT: packages/db not found at ${dbDir}`);
+    process.exit(1);
+  }
+  const r = spawnSync('bunx', ['prisma', 'migrate', 'deploy'], {
+    cwd: dbDir,
+    stdio: 'inherit',
+    env: process.env,
+  });
+  if (r.status !== 0) {
+    console.error('prisma migrate deploy failed');
+    process.exit(1);
+  }
+}
+
 async function main() {
+  runMigrationsOnBootIfEnabled();
   const app = await buildApp();
   try {
     // On some macOS environments, Fastify can throw while enumerating interfaces

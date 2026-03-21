@@ -1,8 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import { projectFileRepository } from './repository.js';
+import { notificationService } from '../notifications/service.js';
+import {
+  activeFileStorage,
+  deleteStoredFile,
+  getFileReadStream,
+  localUploadsPath,
+  storeProjectFile,
+} from '../../lib/file-storage.js';
 
 const ALLOWED_MIME = new Set([
   'application/pdf',
@@ -12,10 +20,6 @@ const ALLOWED_MIME = new Set([
   'image/webp',
   'text/plain',
 ]);
-
-function uploadsRoot(): string {
-  return path.resolve(process.cwd(), 'uploads');
-}
 
 function sanitizeFilename(name: string): string {
   const base = path.basename(name).replace(/[^a-zA-Z0-9._-]+/g, '_');
@@ -42,36 +46,54 @@ export const projectFileService = {
       throw new Error('FILE_TOO_LARGE');
     }
     const safe = sanitizeFilename(originalFilename);
-    const rel = path.join('projects', projectId, `${randomUUID()}-${safe}`);
-    const full = path.join(uploadsRoot(), rel);
-    await mkdir(path.dirname(full), { recursive: true });
-    await writeFile(full, buffer);
-    return projectFileRepository.create({
+    const rel = path.join('projects', projectId, `${randomUUID()}-${safe}`).replace(/\\/g, '/');
+
+    let provider: 'LOCAL' | 'S3';
+    try {
+      const stored = await storeProjectFile(rel, buffer, mt);
+      provider = stored.provider;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'S3_NOT_CONFIGURED') {
+        throw new Error('S3_NOT_CONFIGURED');
+      }
+      throw e;
+    }
+
+    const row = await projectFileRepository.create({
       projectId,
       uploadedById,
       filename: originalFilename,
       mimeType: mt,
       size: buffer.length,
-      storagePath: rel.replace(/\\/g, '/'),
+      storagePath: rel,
+      storageProvider: provider,
     });
+    try {
+      await notificationService.onFileUploaded(projectId, uploadedById, originalFilename);
+    } catch {
+      /* best-effort */
+    }
+    return row;
   },
 
   async delete(id: string) {
     const row = await projectFileRepository.findById(id);
     if (!row) return null;
-    const full = path.join(uploadsRoot(), row.storagePath);
     await projectFileRepository.delete(id);
-    if (existsSync(full)) {
-      try {
-        await unlink(full);
-      } catch {
-        /* ignore */
-      }
-    }
+    await deleteStoredFile(row.storagePath, row.storageProvider);
     return { deleted: true };
   },
 
-  getAbsolutePath(storagePath: string): string {
-    return path.join(uploadsRoot(), storagePath);
+  async getReadStreamForRow(row: { storagePath: string; storageProvider: 'LOCAL' | 'S3' }) {
+    return getFileReadStream(row.storagePath, row.storageProvider);
+  },
+
+  getAbsolutePathForLocal(storagePath: string): string {
+    return localUploadsPath(storagePath);
+  },
+
+  fileExistsLocally(storagePath: string): boolean {
+    return existsSync(localUploadsPath(storagePath));
   },
 };

@@ -1,5 +1,6 @@
 import { invoiceRepository } from './repository.js';
 import type { CreateInvoiceBody, CreatePaymentBody } from './schema.js';
+import { createLemonCheckoutUrl } from '../../lib/lemon-checkout.js';
 
 function parseDate(v: string | Date | undefined): Date {
   if (v instanceof Date) return v;
@@ -19,8 +20,8 @@ export const invoiceService = {
     return [];
   },
 
-  async listByProjectId(projectId: string) {
-    return invoiceRepository.findByProjectId(projectId);
+  async listByProjectId(projectId: string, clientPortal?: boolean) {
+    return invoiceRepository.findByProjectId(projectId, { excludeDrafts: !!clientPortal });
   },
 
   async create(body: CreateInvoiceBody) {
@@ -95,6 +96,31 @@ export const invoiceService = {
     else if (newTotalPaid > 0) newStatus = 'PARTIAL';
     await invoiceRepository.updateStatus(invoiceId, newStatus);
     return invoiceRepository.findById(invoiceId);
+  },
+
+  async updatePaymentSettings(
+    id: string,
+    body: { paymentUrl?: string | null; lemonVariantId?: string | null }
+  ) {
+    const existing = await invoiceRepository.findById(id);
+    if (!existing) return null;
+    return invoiceRepository.updatePaymentFields(id, body);
+  },
+
+  async generateLemonCheckoutAndSave(id: string) {
+    const inv = await invoiceRepository.findById(id);
+    if (!inv) return null;
+    const variantId =
+      inv.lemonVariantId?.trim() || process.env['LEMONSQUEEZY_DEFAULT_VARIANT_ID']?.trim();
+    if (!variantId) return null;
+    const clientEmail = inv.project?.client?.email ?? null;
+    const url = await createLemonCheckoutUrl({
+      variantId,
+      invoiceId: inv.id,
+      customerEmail: clientEmail,
+    });
+    if (!url) return null;
+    return invoiceRepository.updatePaymentFields(id, { paymentUrl: url });
   },
 
 };

@@ -6,6 +6,7 @@ import { success, error } from '../../lib/response.js';
 import { HttpStatus } from '../../lib/errors.js';
 import type { AuthenticatedRequest } from '../auth/hooks.js';
 import { projectIdFromRequest } from '../../lib/route-params.js';
+import { recordAudit } from '../../lib/audit-log.js';
 
 async function canAccessProject(user: { role: string; sub: string }, projectId: string): Promise<boolean> {
   if (user.role === 'ADMIN') return true;
@@ -70,6 +71,14 @@ export async function createMilestone(
   }
   const body = createMilestoneSchema.parse(request.body);
   const created = await milestoneService.create(projectId, body);
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'MILESTONE_CREATED',
+    entityType: 'milestone',
+    entityId: created.id,
+    metadata: { projectId, title: created.title },
+  });
   return reply.status(201).send(success(created));
 }
 
@@ -92,6 +101,14 @@ export async function updateMilestone(
   if (!updated) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Milestone not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'MILESTONE_UPDATED',
+    entityType: 'milestone',
+    entityId: id,
+    metadata: { projectId: found.projectId, ...body } as Record<string, unknown>,
+  });
   return reply.send(success(updated));
 }
 
@@ -113,5 +130,13 @@ export async function deleteMilestone(
   if (!result) {
     return reply.status(HttpStatus.NOT_FOUND).send(error('NOT_FOUND', 'Milestone not found'));
   }
+  recordAudit({
+    request,
+    actorUserId: user.sub,
+    action: 'MILESTONE_DELETED',
+    entityType: 'milestone',
+    entityId: id,
+    metadata: { projectId: found.projectId },
+  });
   return reply.send(success(result));
 }
