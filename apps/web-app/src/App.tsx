@@ -3,6 +3,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { AppLayout } from '@/components/layout/app-layout';
 import { LoginPage } from '@/pages/login-page';
 import { RegisterPage } from '@/pages/register-page';
+import { ForgotPasswordPage } from '@/pages/forgot-password-page';
+import { ResetPasswordPage } from '@/pages/reset-password-page';
 import { DashboardPage } from '@/pages/dashboard-page';
 import { ProjectsListPage } from '@/pages/projects-list-page';
 import { ProjectDetailPage } from '@/pages/project-detail-page';
@@ -12,6 +14,9 @@ import { InvoiceDetailPage } from '@/pages/invoice-detail-page';
 import { InvoiceCreatePage } from '@/pages/invoice-create-page';
 import { ProjectReportsPage } from '@/pages/project-reports-page';
 import { AuditLogsPage } from '@/pages/audit-logs-page';
+import { AccountSettingsPage } from '@/pages/account-settings-page';
+import { UsersListPage } from '@/pages/users-list-page';
+import { NotificationsPage } from '@/pages/notifications-page';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
@@ -46,6 +51,22 @@ export default function App() {
           element={
             <PublicOnlyRoute>
               <LoginPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <ForgotPasswordPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicOnlyRoute>
+              <ResetPasswordPage />
             </PublicOnlyRoute>
           }
         />
@@ -92,6 +113,16 @@ export default function App() {
             element={
               <AdminRoute>
                 <AuditLogsPage />
+              </AdminRoute>
+            }
+          />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="settings" element={<AccountSettingsPage />} />
+          <Route
+            path="users"
+            element={
+              <AdminRoute>
+                <UsersListPage />
               </AdminRoute>
             }
           />

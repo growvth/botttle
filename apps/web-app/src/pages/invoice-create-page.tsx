@@ -82,19 +82,19 @@ export function InvoiceCreatePage() {
     return (
       <div className="text-foreground-muted">
         Only admins can create invoices.{' '}
-        <Link to="/invoices" className="text-primary hover:underline">Back to invoices</Link>
+        <Link to="/invoices" className="font-medium text-primary hover:underline">Back to invoices</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">New invoice</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">New invoice</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="project" className="mb-1 block text-sm font-medium text-foreground">
+            <label htmlFor="project" className="mb-1.5 block text-sm font-medium text-foreground">
               Project
             </label>
             <select
@@ -102,7 +102,7 @@ export function InvoiceCreatePage() {
               required
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-foreground"
+              className="input-field"
             >
               <option value="">Select project</option>
               {projects.map((p: Project) => (
@@ -114,7 +114,7 @@ export function InvoiceCreatePage() {
             </select>
           </div>
           <div>
-            <label htmlFor="dueDate" className="mb-1 block text-sm font-medium text-foreground">
+            <label htmlFor="dueDate" className="mb-1.5 block text-sm font-medium text-foreground">
               Due date
             </label>
             <input
@@ -123,13 +123,13 @@ export function InvoiceCreatePage() {
               required
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-foreground"
+              className="input-field"
             />
           </div>
         </div>
 
-        <div className="w-24">
-          <label htmlFor="taxRate" className="mb-1 block text-sm font-medium text-foreground">
+        <div className="w-28">
+          <label htmlFor="taxRate" className="mb-1.5 block text-sm font-medium text-foreground">
             Tax rate (%)
           </label>
           <input
@@ -140,41 +140,41 @@ export function InvoiceCreatePage() {
             step="0.01"
             value={taxRate}
             onChange={(e) => setTaxRate(e.target.value)}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
           />
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">Line items</label>
+          <div className="mb-3 flex items-center justify-between">
+            <label className="text-sm font-semibold text-foreground">Line items</label>
             <button
               type="button"
               onClick={addRow}
-              className="text-sm text-primary hover:underline"
+              className="text-sm font-medium text-primary transition-colors hover:text-primary-hover"
             >
               + Add row
             </button>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-card">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-foreground-muted">
-                  <th className="p-2 font-medium">Description</th>
-                  <th className="w-20 p-2 font-medium text-right">Qty</th>
-                  <th className="w-28 p-2 font-medium text-right">Unit price</th>
-                  <th className="w-12 p-2" aria-label="Remove" />
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-foreground-muted">Description</th>
+                  <th className="w-20 p-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground-muted">Qty</th>
+                  <th className="w-28 p-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground-muted">Unit price</th>
+                  <th className="w-12 p-3" aria-label="Remove" />
                 </tr>
               </thead>
               <tbody>
                 {items.map((row, i) => (
-                  <tr key={i} className="border-b border-border last:border-0">
+                  <tr key={i} className="border-b border-border/50 last:border-0">
                     <td className="p-2">
                       <input
                         type="text"
                         value={row.description}
                         onChange={(e) => updateRow(i, 'description', e.target.value)}
                         placeholder="Description"
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-foreground"
+                        className="input-field !py-2"
                       />
                     </td>
                     <td className="p-2 text-right">
@@ -184,7 +184,7 @@ export function InvoiceCreatePage() {
                         step="0.01"
                         value={row.quantity}
                         onChange={(e) => updateRow(i, 'quantity', e.target.value)}
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-right text-foreground"
+                        className="input-field !py-2 text-right"
                       />
                     </td>
                     <td className="p-2 text-right">
@@ -194,14 +194,14 @@ export function InvoiceCreatePage() {
                         step="0.01"
                         value={row.unitPrice}
                         onChange={(e) => updateRow(i, 'unitPrice', e.target.value)}
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-right text-foreground"
+                        className="input-field !py-2 text-right"
                       />
                     </td>
-                    <td className="p-2">
+                    <td className="p-2 text-center">
                       <button
                         type="button"
                         onClick={() => removeRow(i)}
-                        className="text-foreground-muted hover:text-destructive"
+                        className="text-foreground-muted transition-colors hover:text-destructive"
                         aria-label="Remove row"
                       >
                         ×
@@ -218,14 +218,14 @@ export function InvoiceCreatePage() {
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-subtle hover:bg-primary-hover disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
           >
             {createMutation.isPending ? 'Creating…' : 'Create invoice'}
           </button>
           <button
             type="button"
             onClick={() => navigate('/invoices')}
-            className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+            className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Cancel
           </button>

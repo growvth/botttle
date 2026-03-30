@@ -2,69 +2,132 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- Light theme (default) --- */
+/* ── Light theme ── */
 :root {
-  --color-primary: #2276e8;
-  --color-primary-hover: #1953b3;
-  --color-primary-muted: #3692f0;
-  --color-primary-light: #4c97ff;
-  --color-primary-pale: #e8f2ff;
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
 
-  --color-background: #ffffff;
-  --color-background-muted: #f8fafc;
-  --color-surface: #fffaf0;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-muted: #3b82f6;
+  --color-primary-light: #60a5fa;
+  --color-primary-pale: #eff6ff;
+
+  --color-background: #f8fafc;
+  --color-background-muted: #f1f5f9;
+  --color-surface: #ffffff;
   --color-border: #e2e8f0;
   --color-border-strong: #cbd5e1;
 
   --color-foreground: #0f172a;
-  --color-foreground-muted: #475569;
+  --color-foreground-muted: #64748b;
   --color-foreground-subtle: #94a3b8;
 
-  --color-success: #5cb85c;
-  --color-success-muted: #e8f5e9;
-  --color-accent-pink: #ffb6c1;
-  --color-accent-yellow: #ffd700;
+  --color-success: #16a34a;
+  --color-success-muted: #dcfce7;
+  --color-accent-pink: #f472b6;
+  --color-accent-yellow: #fbbf24;
 
   --color-error: #dc2626;
   --color-warning: #f59e0b;
-  --color-info: #2276e8;
+  --color-info: #2563eb;
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
-/* --- Dark theme (lighter blues, less heavy) --- */
+/* ── Dark theme ── */
 [data-theme='dark'],
 .dark {
-  --color-primary: #6eb5ff;
-  --color-primary-hover: #4c97ff;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #3b82f6;
   --color-primary-muted: #93c5fd;
-  --color-primary-light: #b4d8ff;
-  --color-primary-pale: #2d4a6f;
+  --color-primary-light: #bfdbfe;
+  --color-primary-pale: #1e3a5f;
 
-  --color-background: #1a2332;
-  --color-background-muted: #243447;
-  --color-surface: #334155;
-  --color-border: #475569;
-  --color-border-strong: #64748b;
+  --color-background: #0c1220;
+  --color-background-muted: #131d2e;
+  --color-surface: #182233;
+  --color-border: #1e3048;
+  --color-border-strong: #2d4a6a;
 
   --color-foreground: #f1f5f9;
-  --color-foreground-muted: #cbd5e1;
-  --color-foreground-subtle: #94a3b8;
+  --color-foreground-muted: #94a3b8;
+  --color-foreground-subtle: #64748b;
 
-  --color-success: #6bcf6b;
-  --color-success-muted: #1e4a1e;
-  --color-accent-pink: #ffb6c1;
-  --color-accent-yellow: #fcd34d;
+  --color-success: #4ade80;
+  --color-success-muted: #14532d;
+  --color-accent-pink: #f472b6;
+  --color-accent-yellow: #fbbf24;
 
   --color-error: #f87171;
-  --color-warning: #fcd34d;
-  --color-info: #6eb5ff;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
   }
+}
+
+/* ── Component utilities ── */
+
+.input-field {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-foreground);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input-field::placeholder {
+  color: var(--color-foreground-subtle);
+}
+.input-field:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-foreground-muted);
+}
+
+/* ── Animations ── */
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.25s ease-out both;
+}
+.animate-slide-down {
+  animation: slide-down 0.2s ease-out both;
 }

@@ -1,14 +1,13 @@
 import type { Config } from 'tailwindcss';
 
-/**
- * botttle theme — logo-derived palette (see THEME_DESIGN in docs).
- * Apps can extend this config and add their own content paths.
- */
 const config: Config = {
   content: ['./src/**/*.{js,ts,jsx,tsx}'],
   darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'sans-serif'],
+      },
       colors: {
         primary: {
           DEFAULT: 'var(--color-primary)',
@@ -23,6 +22,7 @@ const config: Config = {
         },
         background: 'var(--color-background)',
         foreground: 'var(--color-foreground)',
+        surface: 'var(--color-surface)',
         muted: {
           DEFAULT: 'var(--color-background-muted)',
           foreground: 'var(--color-foreground-muted)',
@@ -37,13 +37,18 @@ const config: Config = {
         grid: '8px',
       },
       borderRadius: {
-        lg: 'var(--radius-lg, 0.5rem)',
-        md: 'var(--radius-md, 0.375rem)',
-        sm: 'var(--radius-sm, 0.25rem)',
+        xl: 'var(--radius-xl, 1rem)',
+        lg: 'var(--radius-lg, 0.75rem)',
+        md: 'var(--radius-md, 0.5rem)',
+        sm: 'var(--radius-sm, 0.375rem)',
       },
       boxShadow: {
-        subtle: '0 1px 3px rgba(0,0,0,0.08)',
+        subtle: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)',
         'subtle-dark': '0 1px 3px rgba(0,0,0,0.3)',
+        card: '0 1px 3px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03)',
+        'card-hover': '0 8px 25px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
+        glow: '0 4px 14px rgba(37, 99, 235, 0.15)',
+        dropdown: '0 12px 36px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
       },
     },
   },

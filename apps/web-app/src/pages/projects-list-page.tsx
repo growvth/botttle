@@ -10,6 +10,7 @@ import {
   type Project,
   type Client,
 } from '@/lib/api';
+import { EmptyState, LoadingState } from '@/components/ui/page-states';
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-muted text-foreground-muted',
@@ -50,12 +51,17 @@ export function ProjectsListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Projects</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Projects</h1>
         {isAdmin && (
           <button
             type="button"
             onClick={() => setShowCreate((s) => !s)}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-subtle hover:bg-primary-hover"
+            className={cn(
+              'rounded-lg px-4 py-2.5 text-sm font-semibold transition-all',
+              showCreate
+                ? 'border border-border bg-surface text-foreground hover:bg-muted'
+                : 'bg-primary text-white hover:bg-primary-hover active:scale-[0.98]'
+            )}
           >
             {showCreate ? 'Cancel' : 'New project'}
           </button>
@@ -72,14 +78,16 @@ export function ProjectsListPage() {
       )}
 
       {isLoading ? (
-        <p className="text-foreground-muted">Loading projects…</p>
+        <LoadingState label="Loading projects…" />
       ) : projects.length === 0 ? (
-        <div className="rounded-lg border border-border bg-background p-8 text-center text-foreground-muted">
-          No projects yet.{' '}
-          {isAdmin
-            ? 'Create one above (you need at least one client first).'
-            : 'Only admins can create projects. The first registered user is an admin.'}
-        </div>
+        <EmptyState
+          title="No projects yet"
+          body={
+            isAdmin
+              ? 'Create one above (you need at least one client first).'
+              : 'Only admins can create projects. The first registered user is an admin.'
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {projects.map((p) => (
@@ -99,17 +107,17 @@ function ProjectRow({ project }: { project: Project }) {
     <li>
       <Link
         to={`/projects/${project.id}`}
-        className="flex items-center justify-between rounded-lg border border-border bg-background p-4 shadow-subtle transition-colors hover:bg-muted"
+        className="group flex items-center justify-between rounded-xl border border-border bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
       >
         <div>
-          <span className="font-medium text-foreground">{project.title}</span>
+          <span className="font-semibold text-foreground transition-colors group-hover:text-primary">{project.title}</span>
           {project.client && (
             <span className="ml-2 text-sm text-foreground-muted">{project.client.name}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-foreground-muted">{milestoneCount} milestones</span>
-          <span className={cn('rounded px-2 py-0.5 text-xs font-medium', statusColor)}>
+          <span className={cn('badge', statusColor)}>
             {project.status}
           </span>
         </div>
@@ -140,25 +148,25 @@ function CreateProjectForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-background p-4">
-      <h2 className="mb-3 text-lg font-medium text-foreground">New project</h2>
-      <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="animate-fade-in-up rounded-xl border border-border bg-surface p-5 shadow-card">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">New project</h2>
+      <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Title</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
             required
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Client</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Client</label>
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
             required
           >
             <option value="">Select client</option>
@@ -170,26 +178,26 @@ function CreateProjectForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Description (optional)</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Description (optional)</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
             rows={2}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-1">
           <button
             type="submit"
             disabled={isSubmitting || !title.trim() || !clientId}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
           >
             {isSubmitting ? 'Creating…' : 'Create'}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+            className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Cancel
           </button>

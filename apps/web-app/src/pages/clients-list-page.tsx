@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { cn } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   fetchClients,
@@ -8,6 +9,7 @@ import {
   deleteClient,
   type Client,
 } from '@/lib/api';
+import { EmptyState, LoadingState } from '@/components/ui/page-states';
 
 export function ClientsListPage() {
   const queryClient = useQueryClient();
@@ -34,12 +36,17 @@ export function ClientsListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Clients</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Clients</h1>
         {isAdmin && (
           <button
             type="button"
             onClick={() => setShowCreate((s) => !s)}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-subtle hover:bg-primary-hover"
+            className={cn(
+              'rounded-lg px-4 py-2.5 text-sm font-semibold transition-all',
+              showCreate
+                ? 'border border-border bg-surface text-foreground hover:bg-muted'
+                : 'bg-primary text-white hover:bg-primary-hover active:scale-[0.98]'
+            )}
           >
             {showCreate ? 'Cancel' : 'New client'}
           </button>
@@ -55,14 +62,16 @@ export function ClientsListPage() {
       )}
 
       {isLoading ? (
-        <p className="text-foreground-muted">Loading clients…</p>
+        <LoadingState label="Loading clients…" />
       ) : clients.length === 0 ? (
-        <div className="rounded-lg border border-border bg-background p-8 text-center text-foreground-muted">
-          No clients yet.{' '}
-          {isAdmin
-            ? 'Create one above to assign to projects.'
-            : 'Only admins can create clients. The first registered user is an admin.'}
-        </div>
+        <EmptyState
+          title="No clients yet"
+          body={
+            isAdmin
+              ? 'Create one above to assign to projects.'
+              : 'Only admins can create clients. The first registered user is an admin.'
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {clients.map((c) => (
@@ -110,9 +119,9 @@ function ClientRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border bg-background p-4 shadow-subtle">
+    <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 shadow-card transition-all duration-200 hover:shadow-card-hover">
       <div>
-        <span className="font-medium text-foreground">{client.name}</span>
+        <span className="font-semibold text-foreground">{client.name}</span>
         {client.email && (
           <span className="ml-2 text-sm text-foreground-muted">{client.email}</span>
         )}
@@ -122,14 +131,14 @@ function ClientRow({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded border border-border px-3 py-1 text-sm hover:bg-muted"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             Edit
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="rounded border border-border px-3 py-1 text-sm text-destructive hover:bg-destructive/10"
+            className="rounded-lg border border-destructive/20 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
           >
             Delete
           </button>
@@ -158,40 +167,40 @@ function ClientForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-background p-4">
-      <h2 className="mb-3 text-lg font-medium text-foreground">New client</h2>
-      <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="animate-fade-in-up rounded-xl border border-border bg-surface p-5 shadow-card">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">New client</h2>
+      <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Name</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
             required
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Email (optional)</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Email (optional)</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-1">
           <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
           >
             {isSubmitting ? 'Creating…' : 'Create'}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+            className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Cancel
           </button>
@@ -230,42 +239,39 @@ function ClientEditForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-lg border border-border bg-background p-4"
-    >
-      <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-surface p-5 shadow-card">
+      <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Name</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
             required
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-foreground-muted">Email (optional)</label>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Email (optional)</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground"
+            className="input-field"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-1">
           <button
             type="submit"
             disabled={updateMutation.isPending || !name.trim()}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
           >
             {updateMutation.isPending ? 'Saving…' : 'Save'}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+            className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Cancel
           </button>

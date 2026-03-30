@@ -1077,13 +1077,19 @@ function DocsPage(): JSX.Element {
   return (
     <div className="docs-layout">
       {/* Mobile sidebar toggle */}
-      <button type="button" className="docs-sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+      <button
+        type="button"
+        className="docs-sidebar-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-expanded={sidebarOpen}
+        aria-controls="docs-sidebar"
+      >
         <BookOpen size={16} />
         Navigation
         <ChevronRight size={14} className={sidebarOpen ? 'rotated' : ''} />
       </button>
 
-      <aside className={`docs-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside id="docs-sidebar" className={`docs-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="docs-sidebar-inner">
           <div className="sidebar-group">
             <span className="sidebar-group-label">Getting started</span>
@@ -1206,6 +1212,19 @@ function App(): JSX.Element {
 
   return (
     <div className="page-shell">
+      <a
+        href="#main-content"
+        className="skip-link"
+        onClick={() => {
+          // Safari sometimes won't move focus unless the target is focusable.
+          // Make sure focus lands in main content after jumping.
+          requestAnimationFrame(() => {
+            (document.getElementById('main-content') as HTMLElement | null)?.focus();
+          });
+        }}
+      >
+        Skip to content
+      </a>
       <header className="site-header">
         <div className="container header-row">
           <a href="/" className="brand">
@@ -1236,7 +1255,9 @@ function App(): JSX.Element {
         </div>
       </header>
 
-      <main>{page}</main>
+      <main id="main-content" tabIndex={-1}>
+        {page}
+      </main>
 
       <footer className="site-footer">
         <div className="container footer-inner">

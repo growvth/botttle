@@ -15,7 +15,7 @@ function getStoredToken(): string | null {
   }
 }
 
-const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password'];
 
 export async function api<T>(
   path: string,
@@ -86,6 +86,63 @@ export async function refresh(refreshToken: string): Promise<
     body: JSON.stringify({ refreshToken }),
     token: null,
   });
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<ApiResponse<LoginResponse>> {
+  return api<LoginResponse>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function forgotPassword(email: string): Promise<ApiResponse<{ ok: true }>> {
+  return api<{ ok: true }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    token: null,
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<ApiResponse<{ ok: true }>> {
+  return api<{ ok: true }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+    token: null,
+  });
+}
+
+// Users
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  disabled: boolean;
+  clientId: string | null;
+  createdAt: string;
+};
+
+export async function fetchUserMe(): Promise<ApiResponse<UserProfile>> {
+  return api<UserProfile>('/users/me');
+}
+
+export async function fetchUsers(): Promise<ApiResponse<UserProfile[]>> {
+  return api<UserProfile[]>('/users');
+}
+
+export async function patchUser(
+  id: string,
+  body: Partial<{
+    name: string;
+    role: 'ADMIN' | 'CLIENT';
+    disabled: boolean;
+    clientId: string | null;
+  }>
+): Promise<ApiResponse<UserProfile>> {
+  return api<UserProfile>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
 // Projects

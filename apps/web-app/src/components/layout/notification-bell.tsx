@@ -66,39 +66,39 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-md p-2 text-foreground-muted hover:bg-muted hover:text-foreground"
+        className="relative rounded-lg p-2 text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Notifications"
         aria-expanded={open}
       >
         <Bell className="h-5 w-5" aria-hidden />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] rounded-lg border border-border bg-background shadow-lg">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <span className="text-sm font-medium text-foreground">Notifications</span>
+        <div className="animate-slide-down absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-border bg-surface shadow-dropdown">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="text-sm font-semibold text-foreground">Notifications</span>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => markAll.mutate()}
                 disabled={markAll.isPending}
-                className="text-xs text-primary hover:underline disabled:opacity-50"
+                className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
               >
                 Mark all read
               </button>
             )}
           </div>
-          <ul className="max-h-80 overflow-y-auto py-1">
+          <ul className="max-h-80 overflow-y-auto">
             {isLoading && (
-              <li className="px-3 py-4 text-center text-sm text-foreground-muted">Loading…</li>
+              <li className="px-4 py-6 text-center text-sm text-foreground-muted">Loading…</li>
             )}
             {!isLoading && items.length === 0 && (
-              <li className="px-3 py-4 text-center text-sm text-foreground-muted">You’re all caught up.</li>
+              <li className="px-4 py-6 text-center text-sm text-foreground-muted">You're all caught up.</li>
             )}
             {items.map((n) => (
               <li key={n.id}>
@@ -106,26 +106,26 @@ export function NotificationBell() {
                   type="button"
                   onClick={() => onItemClick(n)}
                   className={cn(
-                    'flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60',
-                    !n.readAt && 'bg-primary-pale/40'
+                    'flex w-full flex-col gap-0.5 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50',
+                    !n.readAt && 'bg-primary/5'
                   )}
                 >
                   <span className="font-medium text-foreground">{n.title}</span>
                   {n.body && <span className="line-clamp-2 text-xs text-foreground-muted">{n.body}</span>}
-                  <span className="text-[10px] text-foreground-muted">
+                  <span className="text-[10px] text-foreground-subtle">
                     {new Date(n.createdAt).toLocaleString()}
                   </span>
                 </button>
               </li>
             ))}
           </ul>
-          <div className="border-t border-border px-3 py-2">
+          <div className="border-t border-border px-4 py-2.5">
             <Link
-              to="/"
-              className="text-xs text-primary hover:underline"
+              to="/notifications"
+              className="text-xs font-medium text-primary hover:underline"
               onClick={() => setOpen(false)}
             >
-              Back to dashboard
+              View all
             </Link>
           </div>
         </div>

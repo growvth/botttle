@@ -3,6 +3,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
+import { prisma } from '@botttle/db';
 import { error, success } from './lib/response.js';
 import { HttpStatus, ErrorCode } from './lib/errors.js';
 import { authRoutes } from './modules/auth/routes.js';
@@ -19,6 +20,7 @@ import { reportsRoutes } from './modules/reports/routes.js';
 import { notificationRoutes } from './modules/notifications/routes.js';
 import { auditLogRoutes } from './modules/audit-logs/routes.js';
 import { lemonSqueezyWebhookRoutes } from './modules/webhooks/lemon-squeezy/routes.js';
+import { redisConnectionOptions } from './queue/connection.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -51,7 +53,26 @@ export async function buildApp() {
   });
 
   app.get('/health', async (_request, reply) => {
-    return reply.send(success({ status: 'ok' }));
+    const checks: { db?: { ok: boolean }; redis?: { ok: boolean } } = {};
+
+    if (process.env['HEALTH_CHECK_DB'] === 'true') {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        checks.db = { ok: true };
+      } catch (e) {
+        checks.db = { ok: false };
+        app.log.error({ err: e }, 'health db check failed');
+      }
+    }
+
+    if (process.env['HEALTH_CHECK_REDIS'] === 'true') {
+      const conn = redisConnectionOptions();
+      checks.redis = { ok: Boolean(conn) };
+    }
+
+    const ok = Object.values(checks).every((v) => (v as { ok?: boolean }).ok !== false);
+    if (!ok) return reply.status(503).send(success({ status: 'degraded', checks }));
+    return reply.send(success({ status: 'ok', checks }));
   });
 
   await app.register(authRoutes, { prefix: '/api/auth' });

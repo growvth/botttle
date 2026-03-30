@@ -15,6 +15,14 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { fetchProject, fetchReportsTime, downloadTimeReportCsv } from '@/lib/api';
 
+const tooltipStyle = {
+  background: 'var(--color-surface)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 10,
+  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+  fontSize: 12,
+};
+
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -56,13 +64,8 @@ export function ProjectReportsPage() {
     enabled: !!projectId && isAdmin && !!from && !!to,
   });
 
-  if (!isAdmin) {
-    return <Navigate to="/projects" replace />;
-  }
-
-  if (!projectId) {
-    return <Navigate to="/projects" replace />;
-  }
+  if (!isAdmin) return <Navigate to="/projects" replace />;
+  if (!projectId) return <Navigate to="/projects" replace />;
 
   const project = projectRes?.success ? projectRes.data : null;
   const payload = timeRes?.success ? timeRes.data : null;
@@ -84,20 +87,20 @@ export function ProjectReportsPage() {
       <div>
         <Link
           to={`/projects/${projectId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground-muted transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
           {project?.title ?? 'Project'}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">Time reports</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Time reports</h1>
         <p className="mt-1 text-sm text-foreground-muted">
           Billable vs non-billable time for this project. Dates are interpreted in UTC (YYYY-MM-DD).
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-background p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-5 shadow-card">
         <div>
-          <label htmlFor="rep-from" className="block text-xs font-medium text-foreground-muted">
+          <label htmlFor="rep-from" className="block text-xs font-semibold text-foreground-muted">
             From
           </label>
           <input
@@ -105,11 +108,11 @@ export function ProjectReportsPage() {
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="mt-1 rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+            className="input-field mt-1.5 !w-auto !py-2"
           />
         </div>
         <div>
-          <label htmlFor="rep-to" className="block text-xs font-medium text-foreground-muted">
+          <label htmlFor="rep-to" className="block text-xs font-semibold text-foreground-muted">
             To
           </label>
           <input
@@ -117,7 +120,7 @@ export function ProjectReportsPage() {
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="mt-1 rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+            className="input-field mt-1.5 !w-auto !py-2"
           />
         </div>
         <button
@@ -131,7 +134,7 @@ export function ProjectReportsPage() {
               setExporting(false);
             }
           }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
         >
           <Download className="h-4 w-4" aria-hidden />
           {exporting ? 'Exporting…' : 'Export CSV'}
@@ -139,22 +142,22 @@ export function ProjectReportsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-border bg-background p-4">
-          <p className="text-xs text-foreground-muted">Total time</p>
-          <p className="text-lg font-semibold text-foreground">{labelHours(totalSec)}</p>
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <p className="text-xs font-semibold text-foreground-muted">Total time</p>
+          <p className="mt-1 text-xl font-bold text-foreground">{labelHours(totalSec)}</p>
         </div>
-        <div className="rounded-lg border border-border bg-background p-4">
-          <p className="text-xs text-foreground-muted">Billable</p>
-          <p className="text-lg font-semibold text-primary">{labelHours(billableSec)}</p>
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <p className="text-xs font-semibold text-foreground-muted">Billable</p>
+          <p className="mt-1 text-xl font-bold text-primary">{labelHours(billableSec)}</p>
         </div>
-        <div className="rounded-lg border border-border bg-background p-4">
-          <p className="text-xs text-foreground-muted">Non-billable</p>
-          <p className="text-lg font-semibold text-foreground">{labelHours(nonBillSec)}</p>
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <p className="text-xs font-semibold text-foreground-muted">Non-billable</p>
+          <p className="mt-1 text-xl font-bold text-foreground">{labelHours(nonBillSec)}</p>
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-background p-4">
-        <h2 className="mb-2 text-sm font-medium text-foreground">Hours by day</h2>
+      <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Hours by day</h2>
         {isLoading ? (
           <p className="text-sm text-foreground-muted">Loading…</p>
         ) : chartData.every((d) => d.Billable === 0 && d['Non-billable'] === 0) ? (
@@ -163,53 +166,47 @@ export function ProjectReportsPage() {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-foreground-muted" />
-                <YAxis tick={{ fontSize: 11 }} className="fill-foreground-muted" />
-                <Tooltip
-                  contentStyle={{
-                    background: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-foreground-muted)' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--color-foreground-muted)' }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
                 <Bar dataKey="Billable" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Non-billable" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Non-billable" stackId="a" fill="#94a3b8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-background overflow-hidden">
-        <h2 className="border-b border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+        <h2 className="border-b border-border bg-muted/40 px-5 py-3 text-sm font-semibold text-foreground">
           Entries ({rows.length})
         </h2>
         <div className="max-h-80 overflow-auto">
           {rows.length === 0 ? (
-            <p className="p-4 text-sm text-foreground-muted">No entries in this range.</p>
+            <p className="p-5 text-sm text-foreground-muted">No entries in this range.</p>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-muted/80 backdrop-blur">
-                <tr className="border-b border-border text-foreground-muted">
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Description</th>
-                  <th className="px-3 py-2 font-medium text-right">Duration</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
+              <thead className="sticky top-0 border-b border-border bg-muted/60 backdrop-blur-sm">
+                <tr className="text-foreground-muted">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">Description</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Duration</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">Type</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={`${r.date}-${i}`} className="border-b border-border last:border-0">
-                    <td className="px-3 py-1.5 text-foreground-muted">{r.date}</td>
-                    <td className="max-w-[200px] truncate px-3 py-1.5 text-foreground">
+                  <tr key={`${r.date}-${i}`} className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-2.5 text-foreground-muted">{r.date}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2.5 text-foreground">
                       {r.description || '—'}
                     </td>
-                    <td className="px-3 py-1.5 text-right text-foreground">
+                    <td className="px-4 py-2.5 text-right font-medium text-foreground">
                       {labelHours(r.seconds)}
                     </td>
-                    <td className="px-3 py-1.5 text-foreground-muted">
+                    <td className="px-4 py-2.5 text-foreground-muted">
                       {r.billable ? 'Billable' : 'Non-billable'}
                     </td>
                   </tr>

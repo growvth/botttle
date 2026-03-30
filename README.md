@@ -63,6 +63,8 @@ bun run dev:web   # terminal 2
 
 **Migrations on every environment:** run `prisma migrate deploy` against the target database whenever you deploy (new migration = required before the new code runs). The Docker API image runs this automatically via `docker/entrypoint-api.sh` before starting the server. For local API only, you can set `RUN_MIGRATIONS_ON_BOOT=true` in `apps/api/.env` so `bun run dev:api` applies pending migrations first (optional).
 
+If a user forgets their password and you do not yet have email reset, an operator can set a new bcrypt hash in PostgreSQL or use a one-off script against `users.password_hash` (same rounds as the API’s `hashPassword`).
+
 ### Optional integrations (all API-side; no secrets in the Vite web app)
 
 | Feature | What to configure |
@@ -71,6 +73,7 @@ bun run dev:web   # terminal 2
 | **Lemon checkout links** | Webhook: `LEMONSQUEEZY_WEBHOOK_SECRET` + dashboard webhook URL. **Dynamic checkouts:** `LEMONSQUEEZY_API_KEY` + `LEMONSQUEEZY_DEFAULT_VARIANT_ID` (or per-invoice variant in the UI). |
 | **S3 file uploads** | `FILE_STORAGE=s3`, `S3_BUCKET`, `AWS_REGION`, credentials. Web keeps uploading **via the API** only. |
 | **Audit: PDF views** | `GET /invoices/:id/pdf` records `INVOICE_PDF_VIEWED`. |
+| **Password reset emails** | Same email config as transactional email. Enables `/forgot-password` → `/reset-password` flow. |
 
 ## Docker (API + web + Postgres + Redis)
 
@@ -82,10 +85,17 @@ docker compose up --build
 - **Web UI:** http://localhost:8080 (Nginx proxies `/api` to the API)
 - **API:** http://localhost:3001
 - **Postgres:** localhost `5432` (user/password/db: `botttle`)
-- **Redis:** localhost `6379` (reserved for future workers; not wired in app code yet)
+- **Redis:** localhost `6379` — used by the **email worker** (BullMQ) when `REDIS_URL` is set; optional if you do not use transactional email.
 
 The API container runs **`bunx prisma migrate deploy`** in `packages/db` on startup so schema changes (including `notifications` and `audit_logs`) are applied before traffic hits the app.
 
 Compose also defines a **`worker`** service (same API image, runs `bun apps/api/dist/worker.js`) for the email queue when `REDIS_URL` / Resend are set.
 
-Upcoming work may add a marketing site, richer client-only UX, and deeper analytics.
+There is a separate **`apps/marketing`** site; upcoming work may include richer client-only UX and deeper analytics in the main app.
+
+### Health check (optional deeper checks)
+
+`GET /health` always returns a basic response. To enable deeper checks:
+
+- Set `HEALTH_CHECK_DB=true` to validate the API can reach PostgreSQL.
+- Set `HEALTH_CHECK_REDIS=true` to validate Redis is configured (for the email worker).

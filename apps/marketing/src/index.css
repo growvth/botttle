@@ -94,9 +94,35 @@ code, kbd, samp, pre { font-family: var(--font-mono); }
   border-width: 0;
 }
 
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-200%);
+  transition: transform 120ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid color-mix(in oklab, var(--accent), transparent 40%);
+  outline-offset: 2px;
+}
+
 .page-shell { display: flex; flex-direction: column; min-height: 100vh; }
 
 main { flex: 1; }
+
+main:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent), transparent 55%);
+  outline-offset: -2px;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Header                                                            */

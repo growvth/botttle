@@ -23,7 +23,6 @@ const STATUS_STYLE: Record<string, string> = {
   OVERDUE: 'bg-destructive/10 text-destructive',
 };
 
-/** Shown to clients instead of raw enum labels */
 const CLIENT_STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Draft',
   SENT: 'Awaiting payment',
@@ -134,7 +133,7 @@ export function InvoiceDetailPage() {
     return (
       <div className="text-foreground-muted">
         Invoice not found.{' '}
-        <Link to="/invoices" className="text-primary hover:underline">
+        <Link to="/invoices" className="font-medium text-primary hover:underline">
           Back to invoices
         </Link>
       </div>
@@ -152,46 +151,45 @@ export function InvoiceDetailPage() {
       <div>
         <Link
           to="/invoices"
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground-muted transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
           Invoices
         </Link>
 
         {!isAdmin ? (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-5">
             <div>
               <p className="text-sm text-foreground-muted">Invoice</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">{invoice.number}</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">{invoice.number}</h1>
               <p className="mt-1 text-foreground-muted">
                 {invoice.project?.title}
                 {invoice.project?.client && ` · ${invoice.project.client.name}`}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-gradient-to-br from-primary-pale/40 to-background p-6 shadow-subtle dark:from-primary/10">
-              <p className="text-sm font-medium text-foreground-muted">
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary-pale/40 to-surface p-7 shadow-card dark:from-primary/10">
+              <p className="text-sm font-semibold text-foreground-muted">
                 {balance <= 0 ? 'Status' : 'Amount due'}
               </p>
               {balance > 0 ? (
-                <p className="mt-1 text-3xl font-semibold text-foreground">
+                <p className="mt-1 text-3xl font-bold text-foreground">
                   {formatMoney(balance, invoice.currency)}
                 </p>
               ) : (
-                <p className="mt-1 text-xl font-medium text-success">
+                <p className="mt-1 text-xl font-semibold text-success">
                   {CLIENT_STATUS_LABEL[invoice.status] ?? invoice.status}
                 </p>
               )}
               <p className="mt-2 text-sm text-foreground-muted">
-                Due {formatDate(invoice.dueDate)} ·{' '}
-                {CLIENT_STATUS_LABEL[invoice.status] ?? invoice.status}
+                Due {formatDate(invoice.dueDate)} · {CLIENT_STATUS_LABEL[invoice.status] ?? invoice.status}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-2">
                 {invoice.paymentLink && balance > 0 && (
                   <a
                     href={invoice.paymentLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-subtle hover:bg-primary-hover"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-glow transition-all hover:bg-primary-hover active:scale-[0.98]"
                   >
                     Pay online
                     <ExternalLink className="h-4 w-4" aria-hidden />
@@ -205,7 +203,7 @@ export function InvoiceDetailPage() {
                     setDownloadingPdf(false);
                   }}
                   disabled={downloadingPdf}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                 >
                   <FileDown className="h-4 w-4 shrink-0" aria-hidden />
                   {downloadingPdf ? 'Downloading…' : 'Download PDF'}
@@ -213,14 +211,14 @@ export function InvoiceDetailPage() {
                 {invoice.project?.id && (
                   <Link
                     to={`/projects/${invoice.project.id}`}
-                    className="inline-flex items-center rounded-md border border-border px-4 py-2.5 text-sm text-foreground hover:bg-muted"
+                    className="inline-flex items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                   >
                     View project
                   </Link>
                 )}
               </div>
               {!invoice.paymentLink && balance > 0 && (
-                <p className="mt-3 text-xs text-foreground-muted">
+                <p className="mt-4 text-xs text-foreground-muted">
                   Your freelancer will share payment instructions if online checkout is not enabled.
                 </p>
               )}
@@ -229,19 +227,14 @@ export function InvoiceDetailPage() {
         ) : (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">{invoice.number}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{invoice.number}</h1>
               <p className="mt-1 text-foreground-muted">
                 {invoice.project?.title}
                 {invoice.project?.client && ` · ${invoice.project.client.name}`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  'rounded px-2 py-1 text-sm font-medium',
-                  STATUS_STYLE[invoice.status] ?? 'bg-muted text-foreground-muted'
-                )}
-              >
+              <span className={cn('badge', STATUS_STYLE[invoice.status] ?? 'bg-muted text-foreground-muted')}>
                 {invoice.status}
               </span>
               {totalPaid < invoice.total && (
@@ -249,12 +242,10 @@ export function InvoiceDetailPage() {
                   value={invoice.status}
                   onChange={(e) => updateStatusMutation.mutate(e.target.value)}
                   disabled={updateStatusMutation.isPending}
-                  className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+                  className="input-field !w-auto !py-1.5 !text-sm"
                 >
                   {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               )}
@@ -266,49 +257,49 @@ export function InvoiceDetailPage() {
                   setDownloadingPdf(false);
                 }}
                 disabled={downloadingPdf}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
               >
                 <FileDown className="h-4 w-4 shrink-0" aria-hidden />
-                {downloadingPdf ? 'Downloading…' : 'Download PDF'}
+                {downloadingPdf ? 'Downloading…' : 'PDF'}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-background p-4">
-          <h2 className="text-sm font-medium text-foreground-muted">Details</h2>
-          <dl className="mt-2 space-y-1 text-sm">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <h2 className="text-sm font-semibold text-foreground-muted">Details</h2>
+          <dl className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-foreground-muted">Due date</dt>
-              <dd className="text-foreground">{formatDate(invoice.dueDate)}</dd>
+              <dd className="font-medium text-foreground">{formatDate(invoice.dueDate)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-foreground-muted">Subtotal</dt>
-              <dd className="text-foreground">{formatMoney(invoice.subtotal, invoice.currency)}</dd>
+              <dd className="font-medium text-foreground">{formatMoney(invoice.subtotal, invoice.currency)}</dd>
             </div>
             {invoice.taxRate > 0 && (
               <div className="flex justify-between">
                 <dt className="text-foreground-muted">Tax ({invoice.taxRate}%)</dt>
-                <dd className="text-foreground">
+                <dd className="font-medium text-foreground">
                   {formatMoney((invoice.subtotal * invoice.taxRate) / 100, invoice.currency)}
                 </dd>
               </div>
             )}
-            <div className="flex justify-between font-medium">
-              <dt className="text-foreground-muted">Total</dt>
-              <dd className="text-foreground">{formatMoney(invoice.total, invoice.currency)}</dd>
+            <div className="flex justify-between border-t border-border pt-2">
+              <dt className="font-semibold text-foreground">Total</dt>
+              <dd className="font-bold text-foreground">{formatMoney(invoice.total, invoice.currency)}</dd>
             </div>
             {totalPaid > 0 && (
               <>
                 <div className="flex justify-between">
                   <dt className="text-foreground-muted">Paid</dt>
-                  <dd className="text-foreground">{formatMoney(totalPaid, invoice.currency)}</dd>
+                  <dd className="font-medium text-success">{formatMoney(totalPaid, invoice.currency)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-foreground-muted">Balance</dt>
-                  <dd className="text-foreground">{formatMoney(balance, invoice.currency)}</dd>
+                  <dd className="font-medium text-foreground">{formatMoney(balance, invoice.currency)}</dd>
                 </div>
               </>
             )}
@@ -316,15 +307,15 @@ export function InvoiceDetailPage() {
         </div>
 
         {invoice.payments && invoice.payments.length > 0 && (
-          <div className="rounded-lg border border-border bg-background p-4">
-            <h2 className="text-sm font-medium text-foreground-muted">Payments</h2>
-            <ul className="mt-2 space-y-2">
+          <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+            <h2 className="text-sm font-semibold text-foreground-muted">Payments</h2>
+            <ul className="mt-3 space-y-2.5">
               {invoice.payments.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span className="text-foreground">{formatMoney(p.amount, invoice.currency)}</span>
+                  <span className="font-medium text-foreground">{formatMoney(p.amount, invoice.currency)}</span>
                   <span
                     className={cn(
-                      'rounded px-1.5 py-0.5 text-xs',
+                      'badge',
                       p.status === 'COMPLETED'
                         ? 'bg-success-muted text-success'
                         : 'bg-muted text-foreground-muted'
@@ -343,35 +334,34 @@ export function InvoiceDetailPage() {
       </div>
 
       {isAdmin && (
-        <div className="rounded-lg border border-border bg-background p-4">
-          <h2 className="text-sm font-medium text-foreground-muted">Client checkout</h2>
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <h2 className="text-sm font-semibold text-foreground-muted">Client checkout</h2>
           <p className="mt-1 text-xs text-foreground-muted">
             Optional payment link stored on this invoice (shown to clients before env template or auto Lemon).
-            Use &quot;Create Lemon link&quot; if <code className="text-foreground">LEMONSQUEEZY_API_KEY</code> and a
-            variant id are configured on the API.
+            Use &quot;Create Lemon link&quot; if <code className="rounded bg-muted px-1 py-0.5 text-foreground">LEMONSQUEEZY_API_KEY</code> and a variant id are configured.
           </p>
           {paymentSettingsError && (
-            <p className="mt-2 text-sm text-destructive" role="alert">
+            <p className="mt-2 text-sm font-medium text-destructive" role="alert">
               {paymentSettingsError}
             </p>
           )}
-          <div className="mt-3 space-y-2">
-            <label className="block text-xs text-foreground-muted">
+          <div className="mt-4 space-y-3">
+            <label className="block text-xs font-medium text-foreground-muted">
               Payment URL
               <input
                 value={paymentUrlDraft}
                 onChange={(e) => setPaymentUrlDraft(e.target.value)}
                 placeholder="https://…"
-                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                className="input-field mt-1.5 !py-2"
               />
             </label>
-            <label className="block text-xs text-foreground-muted">
+            <label className="block text-xs font-medium text-foreground-muted">
               Lemon variant id (optional override)
               <input
                 value={lemonVariantDraft}
                 onChange={(e) => setLemonVariantDraft(e.target.value)}
                 placeholder="Numeric variant id from Lemon"
-                className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                className="input-field mt-1.5 !py-2"
               />
             </label>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -379,7 +369,7 @@ export function InvoiceDetailPage() {
                 type="button"
                 disabled={savePaymentSettingsMutation.isPending}
                 onClick={() => savePaymentSettingsMutation.mutate()}
-                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+                className="rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
               >
                 Save checkout settings
               </button>
@@ -387,7 +377,7 @@ export function InvoiceDetailPage() {
                 type="button"
                 disabled={lemonCheckoutMutation.isPending}
                 onClick={() => lemonCheckoutMutation.mutate()}
-                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+                className="rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
               >
                 {lemonCheckoutMutation.isPending ? 'Creating…' : 'Create Lemon checkout link'}
               </button>
@@ -395,7 +385,7 @@ export function InvoiceDetailPage() {
             {invoice.paymentUrl && (
               <p className="text-xs text-foreground-muted">
                 Current saved URL:{' '}
-                <a href={invoice.paymentUrl} className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                <a href={invoice.paymentUrl} className="font-medium text-primary hover:underline" target="_blank" rel="noreferrer">
                   open
                 </a>
               </p>
@@ -405,19 +395,19 @@ export function InvoiceDetailPage() {
       )}
 
       {isAdmin && balance > 0 && (
-        <div className="rounded-lg border border-border bg-background p-4">
-          <h2 className="text-sm font-medium text-foreground-muted">Record payment</h2>
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
+          <h2 className="text-sm font-semibold text-foreground-muted">Record payment</h2>
           {!showPayment ? (
             <button
               type="button"
               onClick={() => setShowPayment(true)}
-              className="mt-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
+              className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98]"
             >
               Add payment
             </button>
           ) : (
             <form
-              className="mt-2 flex flex-wrap items-end gap-2"
+              className="mt-3 flex flex-wrap items-end gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 const amount = parseFloat(paymentAmount);
@@ -431,9 +421,7 @@ export function InvoiceDetailPage() {
               }}
             >
               <div>
-                <label htmlFor="pay-amount" className="sr-only">
-                  Amount
-                </label>
+                <label htmlFor="pay-amount" className="sr-only">Amount</label>
                 <input
                   id="pay-amount"
                   type="number"
@@ -442,18 +430,16 @@ export function InvoiceDetailPage() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="Amount"
-                  className="w-28 rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                  className="input-field w-28 !py-2"
                 />
               </div>
               <div>
-                <label htmlFor="pay-status" className="sr-only">
-                  Status
-                </label>
+                <label htmlFor="pay-status" className="sr-only">Status</label>
                 <select
                   id="pay-status"
                   value={paymentStatus}
                   onChange={(e) => setPaymentStatus(e.target.value as 'PENDING' | 'COMPLETED')}
-                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                  className="input-field !w-auto !py-2"
                 >
                   <option value="PENDING">Pending</option>
                   <option value="COMPLETED">Completed</option>
@@ -462,7 +448,7 @@ export function InvoiceDetailPage() {
               <button
                 type="submit"
                 disabled={addPaymentMutation.isPending || !paymentAmount}
-                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
               >
                 Save
               </button>
@@ -472,7 +458,7 @@ export function InvoiceDetailPage() {
                   setShowPayment(false);
                   setPaymentAmount('');
                 }}
-                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+                className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 Cancel
               </button>
@@ -481,28 +467,28 @@ export function InvoiceDetailPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-background">
-        <h2 className="border-b border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+        <h2 className="border-b border-border bg-muted/40 px-5 py-3 text-sm font-semibold text-foreground">
           Line items
         </h2>
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-foreground-muted">
-              <th className="px-4 py-2 font-medium">Description</th>
-              <th className="px-4 py-2 font-medium text-right">Qty</th>
-              <th className="px-4 py-2 font-medium text-right">Unit price</th>
-              <th className="px-4 py-2 font-medium text-right">Amount</th>
+              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider">Description</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider">Qty</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider">Unit price</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider">Amount</th>
             </tr>
           </thead>
           <tbody>
             {(invoice.items ?? []).map((item) => (
-              <tr key={item.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-2 text-foreground">{item.description}</td>
-                <td className="px-4 py-2 text-right text-foreground">{item.quantity}</td>
-                <td className="px-4 py-2 text-right text-foreground">
+              <tr key={item.id} className="border-b border-border/50 last:border-0">
+                <td className="px-5 py-3.5 text-foreground">{item.description}</td>
+                <td className="px-5 py-3.5 text-right text-foreground">{item.quantity}</td>
+                <td className="px-5 py-3.5 text-right text-foreground">
                   {formatMoney(item.unitPrice, invoice.currency)}
                 </td>
-                <td className="px-4 py-2 text-right text-foreground">
+                <td className="px-5 py-3.5 text-right font-medium text-foreground">
                   {formatMoney(item.amount, invoice.currency)}
                 </td>
               </tr>

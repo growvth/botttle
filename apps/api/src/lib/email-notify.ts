@@ -53,6 +53,27 @@ export async function notifyInvoiceSentEmails(opts: {
   }
 }
 
+export async function notifyPasswordResetEmail(opts: {
+  email: string;
+  token: string;
+}): Promise<void> {
+  const link = `${publicAppUrl()}/reset-password?token=${encodeURIComponent(opts.token)}`;
+  const subject = `Reset your botttle password`;
+  const textBody = `A password reset was requested for your account. If this was you, use the link below to set a new password. If you didn't request this, you can ignore this email.\n\nThis link will expire soon.`;
+  const html = `<p>${escapeHtml(
+    "A password reset was requested for your account. If this was you, use the link below to set a new password. If you didn't request this, you can ignore this email."
+  )}</p><p><a href="${escapeHtml(link)}">Reset password</a></p><p>${escapeHtml(
+    'This link will expire soon.'
+  )}</p>`;
+
+  await enqueueEmail({
+    to: [opts.email],
+    subject,
+    html,
+    text: `${textBody}\n\n${link}`,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
