@@ -66,15 +66,15 @@ const techStack = [
 ];
 
 const shipList = [
-  'Auth with JWT + refresh tokens',
-  'Clients, projects, milestones, tasks',
-  'Invoices with PDF export',
-  'Lemon Squeezy webhook integration',
-  'Time tracking with CSV export',
-  'Dashboard charts & reports',
-  'Comments & file uploads',
-  'Role-based access (Admin / Client)',
-];
+  { title: 'Auth with JWT + refresh tokens', note: 'Includes password reset emails (optional)' },
+  { title: 'Role-based access (Admin / Client)', note: 'Client-scoped visibility built in' },
+  { title: 'Clients + projects + milestones + tasks', note: 'Progress tracking from task status' },
+  { title: 'Time tracking + reports + CSV export', note: 'Billable/non-billable + trends' },
+  { title: 'Invoices + PDF export + payments', note: 'Statuses, line items, manual payments' },
+  { title: 'Dashboard analytics', note: 'Workload, revenue snapshot, time split' },
+  { title: 'Notifications + audit log', note: 'Know what changed and why' },
+  { title: 'Self-hosting with Docker Compose', note: 'Postgres + Redis + API + Web UI' },
+] as const;
 
 /* ------------------------------------------------------------------ */
 /*  Docs data                                                         */
@@ -111,6 +111,7 @@ interface DocsSection {
   title: string;
   description?: string;
   code?: string;
+  codeByPm?: { bun: string; npm: string };
   codeLang?: string;
   endpoints?: Endpoint[];
   content?: string;
@@ -121,7 +122,8 @@ const docSections: DocsSection[] = [
     id: 'getting-started',
     title: 'Getting started',
     description: 'Get botttle running locally in under five minutes. You need Bun (v1.1+), Node.js (v20+), and a running PostgreSQL instance.',
-    code: `# 1. Clone the repository
+    codeByPm: {
+      bun: `# 1. Clone the repository
 git clone https://github.com/growvth/botttle.git && cd botttle
 
 # 2. Install dependencies
@@ -143,6 +145,29 @@ cd ../..
 # 6. Start the dev servers
 bun run dev:api    # API on http://localhost:3001
 bun run dev:web    # Web UI on http://localhost:5173`,
+      npm: `# 1. Clone the repository
+git clone https://github.com/growvth/botttle.git && cd botttle
+
+# 2. Install dependencies
+npm install
+
+# 3. Start PostgreSQL (via Docker)
+docker compose up -d postgres
+
+# 4. Configure environment
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env — set JWT_SECRET and REFRESH_SECRET
+
+# 5. Run database migrations
+cd packages/db
+DATABASE_URL="postgresql://botttle:botttle@127.0.0.1:5432/botttle" \\
+  npx prisma migrate deploy
+cd ../..
+
+# 6. Start the dev servers
+npm run dev:api    # API on http://localhost:3001
+npm run dev:web    # Web UI on http://localhost:5173`,
+    },
     codeLang: 'bash',
   },
   {
@@ -680,15 +705,16 @@ function EndpointRow({ ep }: { ep: Endpoint }) {
   );
 }
 
-function DocsContent({ section }: { section: DocsSection }) {
+function DocsContent({ section, pkg }: { section: DocsSection; pkg: 'bun' | 'npm' }) {
+  const code = section.codeByPm ? section.codeByPm[pkg] : section.code;
   return (
     <div className="docs-section" id={section.id}>
       <h2 className="docs-section-title">{section.title}</h2>
       {section.description && <p className="docs-section-desc">{section.description}</p>}
-      {section.code && (
+      {code && (
         <div className="code-block-wrap">
           {section.codeLang && <span className="code-lang">{section.codeLang}</span>}
-          <pre className="code-block"><code><HighlightedCode code={section.code} lang={section.codeLang} /></code></pre>
+          <pre className="code-block"><code><HighlightedCode code={code} lang={section.codeLang} /></code></pre>
         </div>
       )}
       {section.content && (
@@ -803,6 +829,98 @@ $`} lang="bash" />{' '}<span className="t-cursor">_</span></pre>
         </div>
       </section>
 
+      {/* Analytics preview */}
+      <section className="section analytics-section">
+        <div className="container">
+          <div className="analytics-grid">
+            <div className="analytics-copy">
+              <span className="section-eyebrow">Analytics</span>
+              <h2 className="section-title">A dashboard that tells you what matters</h2>
+              <p className="section-sub">
+                Workload, revenue, and time—tracked automatically as you run projects and invoices. No spreadsheets,
+                no duct-tape reporting.
+              </p>
+              <ul className="analytics-bullets">
+                <li><span className="analytics-dot" />Workload by project status</li>
+                <li><span className="analytics-dot" />Revenue snapshot + outstanding invoices</li>
+                <li><span className="analytics-dot" />Billable vs non-billable time, with trends</li>
+              </ul>
+              <div className="analytics-actions">
+                <a className="btn btn-ghost" href="/features">Explore all features</a>
+              </div>
+            </div>
+
+            <div className="analytics-preview" aria-label="Analytics preview (illustration)">
+              <div className="dash-shell">
+                <div className="dash-topbar">
+                  <div className="dash-pill">Dashboard</div>
+                  <div className="dash-chips">
+                    <span className="dash-chip">14d</span>
+                    <span className="dash-chip">Billable</span>
+                  </div>
+                </div>
+
+                <div className="dash-cards">
+                  <div className="dash-card">
+                    <div className="dash-label">Projects</div>
+                    <div className="dash-value">6</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '62%' }} />
+                      <span style={{ width: '44%' }} />
+                      <span style={{ width: '78%' }} />
+                      <span style={{ width: '55%' }} />
+                    </div>
+                  </div>
+                  <div className="dash-card">
+                    <div className="dash-label">Revenue</div>
+                    <div className="dash-value">$4.2k</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '38%' }} />
+                      <span style={{ width: '58%' }} />
+                      <span style={{ width: '72%' }} />
+                      <span style={{ width: '90%' }} />
+                    </div>
+                  </div>
+                  <div className="dash-card">
+                    <div className="dash-label">Time</div>
+                    <div className="dash-value">31h</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '70%' }} />
+                      <span style={{ width: '48%' }} />
+                      <span style={{ width: '64%' }} />
+                      <span style={{ width: '52%' }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="dash-panels">
+                  <div className="dash-panel">
+                    <div className="dash-panel-title">Workload</div>
+                    <div className="dash-bars">
+                      <div><span style={{ width: '72%' }} /><em>Active</em></div>
+                      <div><span style={{ width: '38%' }} /><em>On hold</em></div>
+                      <div><span style={{ width: '55%' }} /><em>Draft</em></div>
+                    </div>
+                  </div>
+                  <div className="dash-panel">
+                    <div className="dash-panel-title">Time trend</div>
+                    <div className="dash-spark">
+                      <span style={{ height: '35%' }} />
+                      <span style={{ height: '55%' }} />
+                      <span style={{ height: '42%' }} />
+                      <span style={{ height: '70%' }} />
+                      <span style={{ height: '48%' }} />
+                      <span style={{ height: '78%' }} />
+                      <span style={{ height: '58%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* What ships */}
       <section className="section ship-section">
         <div className="container">
@@ -815,9 +933,12 @@ $`} lang="bash" />{' '}<span className="t-cursor">_</span></pre>
           </div>
           <div className="ship-list">
             {shipList.map((item) => (
-              <div key={item} className="ship-item">
+              <div key={item.title} className="ship-item">
                 <div className="ship-check"><Check size={14} /></div>
-                <span>{item}</span>
+                <div className="ship-text">
+                  <div className="ship-title">{item.title}</div>
+                  <div className="ship-note">{item.note}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -1005,6 +1126,65 @@ function FeaturesPage(): JSX.Element {
         </div>
       </section>
 
+      <section className="features-analytics">
+        <div className="container">
+          <div className="features-analytics-inner">
+            <div>
+              <span className="section-eyebrow">Analytics</span>
+              <h2 className="section-title">Know what’s happening across clients</h2>
+              <p className="section-sub">
+                The dashboard and reports pull from real project, invoice, and time log data — so you always have a
+                snapshot of workload, revenue, and billable hours.
+              </p>
+            </div>
+            <div className="analytics-preview" aria-label="Analytics preview (illustration)">
+              <div className="dash-shell">
+                <div className="dash-topbar">
+                  <div className="dash-pill">Dashboard</div>
+                  <div className="dash-chips">
+                    <span className="dash-chip">14d</span>
+                    <span className="dash-chip">Billable</span>
+                  </div>
+                </div>
+
+                <div className="dash-cards">
+                  <div className="dash-card">
+                    <div className="dash-label">Projects</div>
+                    <div className="dash-value">6</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '62%' }} />
+                      <span style={{ width: '44%' }} />
+                      <span style={{ width: '78%' }} />
+                      <span style={{ width: '55%' }} />
+                    </div>
+                  </div>
+                  <div className="dash-card">
+                    <div className="dash-label">Revenue</div>
+                    <div className="dash-value">$4.2k</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '38%' }} />
+                      <span style={{ width: '58%' }} />
+                      <span style={{ width: '72%' }} />
+                      <span style={{ width: '90%' }} />
+                    </div>
+                  </div>
+                  <div className="dash-card">
+                    <div className="dash-label">Time</div>
+                    <div className="dash-value">31h</div>
+                    <div className="dash-mini">
+                      <span style={{ width: '70%' }} />
+                      <span style={{ width: '48%' }} />
+                      <span style={{ width: '64%' }} />
+                      <span style={{ width: '52%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="features-body">
         <div className="container">
           {featureDetails.map((f, i) => (
@@ -1071,6 +1251,7 @@ function FeaturesPage(): JSX.Element {
 function DocsPage(): JSX.Element {
   const [activeId, setActiveId] = useState(docsSidebar[0].id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pkg, setPkg] = useState<'bun' | 'npm'>('bun');
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1165,9 +1346,32 @@ function DocsPage(): JSX.Element {
           <p className="docs-hero-sub">
             Everything you need to deploy, configure, and build on botttle.
           </p>
+          <div className="docs-toggle-row" aria-label="Package manager toggle">
+            <span className="docs-toggle-label">Package manager</span>
+            <div className="docs-toggle" role="tablist" aria-label="Package manager">
+              <button
+                type="button"
+                className={`docs-toggle-btn ${pkg === 'bun' ? 'active' : ''}`}
+                onClick={() => setPkg('bun')}
+                role="tab"
+                aria-selected={pkg === 'bun'}
+              >
+                Bun
+              </button>
+              <button
+                type="button"
+                className={`docs-toggle-btn ${pkg === 'npm' ? 'active' : ''}`}
+                onClick={() => setPkg('npm')}
+                role="tab"
+                aria-selected={pkg === 'npm'}
+              >
+                npm
+              </button>
+            </div>
+          </div>
         </div>
         {docSections.map((section) => (
-          <DocsContent key={section.id} section={section} />
+          <DocsContent key={section.id} section={section} pkg={pkg} />
         ))}
       </div>
     </div>
@@ -1304,10 +1508,11 @@ function App(): JSX.Element {
                 <a href="https://github.com/growvth/botttle/issues" target="_blank" rel="noreferrer">Issues</a>
               </div>
               <div>
-                <h4>Stack</h4>
-                <span>Fastify API</span>
-                <span>React + Vite</span>
-                <span>PostgreSQL + Prisma</span>
+                <h4>Self-hosting</h4>
+                <a href="/docs#docker">Docker deployment</a>
+                <a href="/docs#configuration">Configuration</a>
+                <a href="/docs#database">Migrations & schema</a>
+                <a href="/docs#getting-started">Upgrade checklist</a>
               </div>
             </div>
           </div>
