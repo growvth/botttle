@@ -14,7 +14,7 @@ export function NotificationsPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['notifications', 'page'],
     queryFn: async () => {
-      const res = await fetchNotifications({ limit: 200 });
+      const res = await fetchNotifications({ limit: 100 });
       if (!res.success) throw new Error(res.error.message);
       return res.data;
     },

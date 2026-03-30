@@ -482,7 +482,7 @@ export function InvoiceDetailPage() {
           </thead>
           <tbody>
             {(invoice.items ?? []).map((item) => (
-              <tr key={item.id} className="border-b border-border/50 last:border-0">
+              <tr key={item.id} className="border-b border-border last:border-0">
                 <td className="px-5 py-3.5 text-foreground">{item.description}</td>
                 <td className="px-5 py-3.5 text-right text-foreground">{item.quantity}</td>
                 <td className="px-5 py-3.5 text-right text-foreground">

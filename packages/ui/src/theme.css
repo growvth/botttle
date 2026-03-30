@@ -44,17 +44,18 @@
   --color-primary-hover: #3b82f6;
   --color-primary-muted: #93c5fd;
   --color-primary-light: #bfdbfe;
-  --color-primary-pale: #1e3a5f;
+  --color-primary-pale: #16253d;
 
-  --color-background: #0c1220;
-  --color-background-muted: #131d2e;
-  --color-surface: #182233;
-  --color-border: #1e3048;
-  --color-border-strong: #2d4a6a;
+  --color-background: #0f172a;
+  --color-background-muted: #111c31;
+  --color-surface: #151f35;
+  --color-border: #22324b;
+  --color-border-strong: #2f476a;
+  --color-border-subtle: #1a283e;
 
-  --color-foreground: #f1f5f9;
-  --color-foreground-muted: #94a3b8;
-  --color-foreground-subtle: #64748b;
+  --color-foreground: #e5e7eb;
+  --color-foreground-muted: #a9b6c9;
+  --color-foreground-subtle: #7e8fa8;
 
   --color-success: #4ade80;
   --color-success-muted: #14532d;
@@ -104,6 +105,22 @@
   font-size: 0.75rem;
   line-height: 1rem;
   font-weight: 500;
+}
+
+.btn-destructive {
+  background: color-mix(in srgb, var(--color-error) 14%, transparent);
+  color: var(--color-error);
+  border: 1px solid transparent;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+
+.btn-destructive:hover {
+  background: color-mix(in srgb, var(--color-error) 22%, transparent);
+}
+
+.btn-destructive:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+  outline-offset: 2px;
 }
 
 .section-title {

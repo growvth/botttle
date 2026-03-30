@@ -5,13 +5,11 @@ import {
   Users,
   FileText,
   ScrollText,
-  Sun,
-  Moon,
   LogOut,
   UserCog,
   UserCircle,
 } from 'lucide-react';
-import { cn, useTheme } from '@botttle/ui';
+import { cn } from '@botttle/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { BrandLogo } from '@/components/brand-logo';
 
@@ -31,6 +29,15 @@ function isNavActive(pathname: string, to: string): boolean {
   return path.startsWith(to);
 }
 
+function initials(nameOrEmail: string): string {
+  const s = nameOrEmail.trim();
+  if (!s) return '?';
+  const parts = s.includes('@') ? s.split('@')[0] : s.split(/\s+/);
+  const a = parts[0]?.[0] ?? '?';
+  const b = parts.length > 1 ? parts[1]?.[0] : parts[0]?.[1];
+  return `${a}${b ?? ''}`.toUpperCase();
+}
+
 export function AppSidebar({
   onNavigate,
   className,
@@ -39,7 +46,6 @@ export function AppSidebar({
   className?: string;
 }) {
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
@@ -82,31 +88,40 @@ export function AppSidebar({
       </nav>
       <div className="space-y-0.5 border-t border-border px-3 py-3">
         {user && (
-          <div className="mb-2 truncate px-3 text-xs text-foreground-muted">
-            {user.name || user.email}
+          <div className="mb-2 rounded-xl border border-border bg-surface px-3 py-2.5">
+            <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+              {initials(user.name || user.email)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-foreground">
+                {user.name?.trim() || user.email}
+              </div>
+              <div className="truncate text-xs text-foreground-muted">{user.email}</div>
+            </div>
+            <span
+              className={cn(
+                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                user.role === 'ADMIN'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-muted text-foreground-muted'
+              )}
+              aria-label={`Role: ${user.role}`}
+              title={`Role: ${user.role}`}
+            >
+              {user.role === 'ADMIN' ? 'Admin' : 'Client'}
+            </span>
+            </div>
+            <button
+              type="button"
+              onClick={clearAuth}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+              Sign out
+            </button>
           </div>
         )}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-[18px] w-[18px] shrink-0" aria-hidden />
-          ) : (
-            <Moon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-          )}
-          <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-        </button>
-        <button
-          type="button"
-          onClick={clearAuth}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <LogOut className="h-[18px] w-[18px] shrink-0" aria-hidden />
-          Sign out
-        </button>
       </div>
     </aside>
   );

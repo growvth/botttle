@@ -1,12 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Menu, X } from 'lucide-react';
-import { cn } from '@botttle/ui';
+import { Menu, Moon, Sun, X } from 'lucide-react';
+import { cn, useTheme } from '@botttle/ui';
 import { AppSidebar } from './app-sidebar';
 import { NotificationBell } from './notification-bell';
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -37,7 +38,7 @@ export function AppLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl md:px-6">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/80 px-4 backdrop-blur-xl md:px-6">
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
@@ -51,7 +52,16 @@ export function AppLayout() {
             {mobileOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="rounded-lg p-2 text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Toggle theme"
+              title="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" aria-hidden /> : <Moon className="h-5 w-5" aria-hidden />}
+            </button>
             <NotificationBell />
           </div>
         </header>

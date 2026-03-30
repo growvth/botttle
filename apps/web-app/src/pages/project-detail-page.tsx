@@ -151,11 +151,6 @@ export function ProjectDetailPage() {
         )}
       </div>
 
-      <ProjectInvoicesSection projectId={projectId} invoices={projectInvoices} isAdmin={isAdmin} />
-      {isAdmin && <TimeLogsSection projectId={projectId} logs={timeLogs} />}
-      <CommentsSection projectId={projectId} comments={comments} loadError={commentsLoadError} />
-      <FilesSection projectId={projectId} files={files} loadError={filesLoadError} readOnly={!isAdmin} />
-
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Milestones</h2>
@@ -203,6 +198,11 @@ export function ProjectDetailPage() {
           )}
         </div>
       </section>
+
+      {isAdmin && <TimeLogsSection projectId={projectId} logs={timeLogs} />}
+      <CommentsSection projectId={projectId} comments={comments} loadError={commentsLoadError} />
+      <FilesSection projectId={projectId} files={files} loadError={filesLoadError} readOnly={!isAdmin} />
+      <ProjectInvoicesSection projectId={projectId} invoices={projectInvoices} isAdmin={isAdmin} />
     </div>
   );
 }
@@ -419,7 +419,7 @@ function TimeLogsSection({ projectId, logs }: { projectId: string; logs: TimeLog
               return (
                 <div
                   key={log.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium text-foreground">
@@ -819,16 +819,22 @@ function MilestoneCard({
         />
       )}
 
-      <ul className="mt-3 space-y-1 pl-4">
-        {tasks.map((t) => (
-          <TaskItem
-            key={t.id}
-            task={t}
-            readOnly={readOnly}
-            onUpdate={() => queryClient.invalidateQueries({ queryKey: ['project', projectId] })}
-          />
-        ))}
-      </ul>
+      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/10">
+        {tasks.length === 0 ? (
+          <div className="px-4 py-3 text-sm text-foreground-muted">No tasks yet.</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {tasks.map((t) => (
+              <TaskItem
+                key={t.id}
+                task={t}
+                readOnly={readOnly}
+                onUpdate={() => queryClient.invalidateQueries({ queryKey: ['project', projectId] })}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -896,17 +902,33 @@ function TaskItem({
     onSuccess: onUpdate,
   });
 
+  const statusTone =
+    task.status === 'COMPLETED'
+      ? 'bg-success-muted text-success'
+      : task.status === 'IN_PROGRESS'
+        ? 'bg-primary/10 text-primary'
+        : 'bg-muted text-foreground-muted';
+
   return (
-    <li className="flex items-center gap-2 text-sm">
+    <li className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+      <div className="min-w-0 flex-1">
+        <div
+          className={cn(
+            'truncate font-medium text-foreground',
+            task.status === 'COMPLETED' && 'line-through text-foreground-muted'
+          )}
+        >
+          {task.title}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-foreground-muted">
+          <span className={cn('badge text-[10px]', statusTone)}>{task.status.replace(/_/g, ' ')}</span>
+        </div>
+      </div>
+
       {readOnly ? (
-        <>
-          <span className={cn(task.status === 'COMPLETED' && 'line-through text-foreground-muted')}>
-            {task.title}
-          </span>
-          <span className="badge bg-muted text-foreground-muted text-[10px]">{task.status}</span>
-        </>
+        <div className="text-xs text-foreground-subtle">—</div>
       ) : editing ? (
-        <>
+        <div className="flex shrink-0 items-center gap-2">
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -922,25 +944,22 @@ function TaskItem({
               update.mutate({ status });
               setEditing(false);
             }}
-            className="text-sm font-medium text-primary hover:underline"
+            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary-hover disabled:opacity-50"
+            disabled={update.isPending}
           >
             Save
           </button>
-        </>
+        </div>
       ) : (
-        <>
-          <span className={cn(task.status === 'COMPLETED' && 'line-through text-foreground-muted')}>
-            {task.title}
-          </span>
-          <span className="badge bg-muted text-foreground-muted text-[10px]">{task.status}</span>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-xs text-foreground-muted transition-colors hover:text-foreground"
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             Edit
           </button>
-        </>
+        </div>
       )}
     </li>
   );

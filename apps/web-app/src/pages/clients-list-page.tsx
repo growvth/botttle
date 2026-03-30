@@ -138,7 +138,7 @@ function ClientRow({
           <button
             type="button"
             onClick={onDelete}
-            className="rounded-lg border border-destructive/20 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            className="btn-destructive rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
             Delete
           </button>
