@@ -833,7 +833,10 @@ $`} lang="bash" />{' '}<span className="t-cursor">_</span></pre>
           <div className="steps-grid">
             {steps.map((s) => (
               <div key={s.num} className="step-card">
-                <span className="step-num">{s.num}</span>
+                <div className="step-top">
+                  <span className="step-num">{s.num}</span>
+                  <span className="step-kicker">Step</span>
+                </div>
                 <h3>{s.title}</h3>
                 <p>{s.description}</p>
               </div>
@@ -846,20 +849,40 @@ $`} lang="bash" />{' '}<span className="t-cursor">_</span></pre>
       <section className="section cta-section">
         <div className="container">
           <div className="cta-panel">
-            <h2>Ready to own your workflow?</h2>
-            <p>
-              Deploy on your own infrastructure and start managing clients in minutes.
-              No per-seat pricing, no data leaving your servers.
-            </p>
-            <div className="hero-actions" style={{ justifyContent: 'center' }}>
-              <a className="btn btn-primary" href="/docs">
-                Read the docs
-                <ArrowRight size={15} />
-              </a>
-              <a className="btn btn-ghost" href="https://github.com/growvth/botttle" target="_blank" rel="noreferrer">
-                <Github size={15} />
-                View source
-              </a>
+            <div className="cta-inner">
+              <div className="cta-copy">
+                <h2>Ready to own your workflow?</h2>
+                <p>
+                  Deploy on your own infrastructure and start managing clients in minutes.
+                  No per-seat pricing, no data leaving your servers.
+                </p>
+                <ul className="cta-bullets">
+                  <li><span className="cta-dot" />PostgreSQL + Docker Compose</li>
+                  <li><span className="cta-dot" />Role-based client portal</li>
+                  <li><span className="cta-dot" />Invoices, time tracking, and reports</li>
+                </ul>
+              </div>
+              <div className="cta-actions">
+                <div className="hero-actions" style={{ justifyContent: 'flex-start' }}>
+                  <a className="btn btn-primary" href="/docs">
+                    Read the docs
+                    <ArrowRight size={15} />
+                  </a>
+                  <a
+                    className="btn btn-ghost"
+                    href="https://github.com/growvth/botttle"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Github size={15} />
+                    View source
+                  </a>
+                </div>
+                <div className="cta-note">
+                  <span className="cta-note-label">Tip</span>
+                  <span>Set `JWT_SECRET` and `REFRESH_SECRET` before deploying.</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
