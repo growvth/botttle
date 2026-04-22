@@ -10,6 +10,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "dev:api": "turbo run dev --filter=api",
+    "dev:backend": "bash scripts/dev-backend.sh",
     "dev:worker": "turbo run dev:worker --filter=api",
     "dev:web": "turbo run dev --filter=web-app",
     "dev:marketing": "turbo run dev --filter=marketing",

@@ -26,8 +26,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useTheme } from '@botttle/ui';
-import logoUrl from '../../../packages/ui/public/botttle.svg';
+import { BotttleMark, useTheme } from '@botttle/ui';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                              */
@@ -1455,7 +1454,7 @@ function App(): JSX.Element {
       <header className="site-header">
         <div className="container header-row">
           <a href="/" className="brand">
-            <img src={logoUrl} alt="botttle" className="brand-logo" />
+            <BotttleMark className="brand-logo" aria-hidden />
             <span>botttle</span>
           </a>
           <nav className={`site-nav ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
@@ -1491,7 +1490,7 @@ function App(): JSX.Element {
           <div className="footer-top">
             <div className="footer-brand-col">
               <a href="/" className="brand">
-                <img src={logoUrl} alt="botttle" className="brand-logo" />
+                <BotttleMark className="brand-logo" aria-hidden />
                 <span>botttle</span>
               </a>
               <p>Self-hosted client portal for freelancers and small teams.</p>

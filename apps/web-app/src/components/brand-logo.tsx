@@ -1,11 +1,10 @@
-import botttleLogoUrl from '@botttle/ui/botttle.svg?url';
+import { BotttleMark } from '@botttle/ui';
 
 type BrandLogoProps = {
   className?: string;
-  alt?: string;
 };
 
-/** Logo asset from `packages/ui/public/botttle.svg` (via `@botttle/ui` export). */
-export function BrandLogo({ className, alt = 'botttle' }: BrandLogoProps) {
-  return <img src={botttleLogoUrl} alt={alt} className={className} />;
+/** Theme-colored logo mark (decorative next to “botttle” text). */
+export function BrandLogo({ className }: BrandLogoProps) {
+  return <BotttleMark className={className} aria-hidden="true" />;
 }
