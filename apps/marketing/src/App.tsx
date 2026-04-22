@@ -812,15 +812,18 @@ $`} lang="bash" />{' '}<span className="t-cursor">_</span></pre>
       </section>
 
       {/* Tech stack ribbon */}
-      <section className="stack-ribbon">
+      <section className="stack-ribbon" aria-label="Tech stack">
         <div className="container">
           <div className="stack-row">
-            <span className="stack-label">Built with</span>
+            <p className="stack-ribbon-eyebrow">Built with</p>
             <div className="stack-items">
               {techStack.map((t) => (
                 <span key={t.name} className="stack-chip">
-                  <strong>{t.name}</strong>
-                  <span>{t.desc}</span>
+                  <span className="stack-chip-name">{t.name}</span>
+                  <span className="stack-chip-sep" aria-hidden>
+                    ·
+                  </span>
+                  <span className="stack-chip-desc">{t.desc}</span>
                 </span>
               ))}
             </div>

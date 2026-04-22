@@ -162,9 +162,45 @@ code, kbd, samp, pre { font-family: var(--font-mono); }
   outline-offset: 2px;
 }
 
-.page-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.page-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+}
 
-main { flex: 1; }
+/* Shared “sky” so hero glow isn’t a separate layer only below the header (avoids a hard seam). */
+.page-shell::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: min(78vh, 720px);
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side at 20% 0%, rgba(37, 99, 235, 0.20), transparent 58%),
+    radial-gradient(closest-side at 82% 2%, rgba(16, 185, 129, 0.16), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 5%, color-mix(in oklab, var(--bg) 50%, transparent), transparent 72%);
+  filter: blur(32px);
+  opacity: 0.95;
+}
+
+[data-theme='dark'] .page-shell::before {
+  background:
+    radial-gradient(closest-side at 20% 0%, rgba(37, 99, 235, 0.18), transparent 58%),
+    radial-gradient(closest-side at 82% 2%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(ellipse 100% 85% at 50% 8%, color-mix(in oklab, var(--bg) 40%, transparent), transparent 75%);
+  filter: blur(40px);
+  opacity: 0.88;
+}
+
+main {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
 
 main:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent), transparent 55%);
@@ -179,10 +215,19 @@ main:focus-visible {
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(12px) saturate(1.5);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
-  background: color-mix(in oklab, var(--bg), transparent 10%);
-  border-bottom: 1px solid var(--border-subtle);
+  /* Let the page & shell gradients read through; keep only a light veil + glass */
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  background: color-mix(in oklab, var(--bg), transparent 32%);
+  /* Softer than a 1px solid — avoids a hard “cut” above the hero */
+  border-bottom: 1px solid color-mix(in oklab, var(--border), transparent 72%);
+  box-shadow: 0 12px 40px -28px color-mix(in oklab, var(--bg), #000 55%);
+}
+
+[data-theme='dark'] .site-header {
+  background: color-mix(in oklab, var(--bg), transparent 40%);
+  border-bottom-color: color-mix(in oklab, var(--border), transparent 55%);
+  box-shadow: 0 18px 50px -30px rgba(0, 0, 0, 0.45);
 }
 
 .header-row {
@@ -346,26 +391,28 @@ main:focus-visible {
 
 .hero {
   position: relative;
+  z-index: 1;
   padding: 5rem 0 3rem;
   overflow: hidden;
 }
 
+/* Extra hero punch; .page-shell::before already unifies the top, so this can sit a bit lighter */
 .hero::before {
   content: '';
   position: absolute;
-  inset: -180px -180px auto -180px;
-  height: 520px;
+  inset: -120px -180px auto -180px;
+  height: 480px;
   background:
-    radial-gradient(closest-side at 22% 55%, rgba(37, 99, 235, 0.22), transparent 60%),
-    radial-gradient(closest-side at 70% 30%, rgba(16, 185, 129, 0.18), transparent 62%),
-    radial-gradient(closest-side at 55% 90%, rgba(15, 23, 42, 0.10), transparent 60%);
+    radial-gradient(closest-side at 22% 55%, rgba(37, 99, 235, 0.18), transparent 60%),
+    radial-gradient(closest-side at 70% 30%, rgba(16, 185, 129, 0.15), transparent 62%),
+    radial-gradient(closest-side at 55% 90%, rgba(15, 23, 42, 0.08), transparent 60%);
   filter: blur(24px);
-  opacity: 0.9;
+  opacity: 0.82;
   pointer-events: none;
 }
 
 [data-theme='dark'] .hero::before {
-  opacity: 0.8;
+  opacity: 0.72;
   filter: blur(28px);
 }
 
@@ -503,53 +550,107 @@ main:focus-visible {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Stack ribbon                                                      */
+/*  Stack ribbon (restrained, editorial — no heavy “badge” cards)     */
 /* ------------------------------------------------------------------ */
 
 .stack-ribbon {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-soft);
-  padding: 1.25rem 0;
+  position: relative;
+  padding: 2.15rem 0 2.35rem;
+  background: var(--bg);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+[data-theme='dark'] .stack-ribbon {
+  background: var(--bg);
+  border-top-color: color-mix(in oklab, var(--border), transparent 30%);
+  border-bottom-color: color-mix(in oklab, var(--border), transparent 30%);
 }
 
 .stack-row {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.9rem;
+  text-align: center;
 }
 
-.stack-label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--text-muted);
+/* Muted label — not accent blue, reads like a quiet editorial credit */
+.stack-ribbon-eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--text-muted);
 }
 
 .stack-items {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.4rem 0.35rem;
   flex-wrap: wrap;
+  max-width: 56rem;
+  margin: 0 auto;
+  row-gap: 0.5rem;
 }
 
+/* One line per stack: name · role. Hairline, flat — elevation only from surface contrast */
 .stack-chip {
   display: inline-flex;
-  align-items: center;
+  flex-direction: row;
+  align-items: baseline;
   gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  padding: 0.4rem 0.7rem 0.42rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--border), transparent 22%);
   background: var(--bg-elevated);
-  font-size: 0.8125rem;
-  line-height: 1;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 0 color-mix(in oklab, #fff, transparent 60%);
+  transition: border-color 150ms ease, color 150ms ease;
 }
 
-.stack-chip strong { font-weight: 600; color: var(--text); }
-.stack-chip span { color: var(--text-muted); font-size: 0.75rem; }
+[data-theme='dark'] .stack-chip {
+  background: color-mix(in oklab, var(--bg-elevated) 92%, #030712 8%);
+  box-shadow: none;
+  border-color: color-mix(in oklab, var(--border), transparent 20%);
+  color: var(--text-secondary);
+}
+
+.stack-chip:hover {
+  border-color: color-mix(in oklab, var(--border), var(--text-muted) 15%);
+  color: var(--text);
+}
+
+[data-theme='dark'] .stack-chip:hover {
+  border-color: color-mix(in oklab, var(--border), #fff 8%);
+  color: var(--text);
+}
+
+.stack-chip-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stack-chip-sep {
+  user-select: none;
+  color: var(--text-muted);
+  font-weight: 300;
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.stack-chip-desc {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Sections                                                          */
@@ -1810,7 +1911,8 @@ main:focus-visible {
   .steps-grid { grid-template-columns: 1fr; }
   .steps-grid::before { display: none; }
 
-  .stack-items { gap: 0.4rem; }
+  .stack-items { gap: 0.35rem 0.3rem; }
+  .stack-chip { padding: 0.35rem 0.55rem; font-size: 0.75rem; }
 
   .hero-h1 { font-size: 2rem; }
 
