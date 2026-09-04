@@ -6,6 +6,7 @@
 //! the app around them.
 
 mod actions;
+mod assets;
 mod pane;
 mod settings;
 mod settings_view;
@@ -24,38 +25,40 @@ fn main() {
     // Sets TERM and COLORTERM for every shell we spawn.
     alacritty_terminal::tty::setup_env();
 
-    Application::new().run(|cx: &mut App| {
-        settings::init(cx);
-        theme::init(cx);
-        actions::init(cx);
+    Application::new()
+        .with_assets(assets::Assets)
+        .run(|cx: &mut App| {
+            settings::init(cx);
+            theme::init(cx);
+            actions::init(cx);
 
-        cx.on_action(|_: &actions::Quit, cx| cx.quit());
+            cx.on_action(|_: &actions::Quit, cx| cx.quit());
 
-        let bounds = Bounds::centered(None, size(px(1120.0), px(720.0)), cx);
-        let window = cx
-            .open_window(
-                WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
-                    titlebar: Some(TitlebarOptions {
-                        title: Some("botttle".into()),
-                        appears_transparent: true,
-                        // Centred in the 32px titlebar drawn by the workspace.
-                        traffic_light_position: Some(point(px(14.0), px(10.0))),
-                    }),
-                    window_min_size: Some(size(px(600.0), px(400.0))),
-                    app_id: Some("dev.botttle".to_string()),
-                    ..Default::default()
-                },
-                |window, cx| cx.new(|cx| Workspace::new(window, cx)),
-            )
-            .expect("failed to open the botttle window");
+            let bounds = Bounds::centered(None, size(px(1120.0), px(720.0)), cx);
+            let window = cx
+                .open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(bounds)),
+                        titlebar: Some(TitlebarOptions {
+                            title: Some("botttle".into()),
+                            appears_transparent: true,
+                            // Centred in the 32px titlebar drawn by the workspace.
+                            traffic_light_position: Some(point(px(14.0), px(10.0))),
+                        }),
+                        window_min_size: Some(size(px(600.0), px(400.0))),
+                        app_id: Some("dev.botttle".to_string()),
+                        ..Default::default()
+                    },
+                    |window, cx| cx.new(|cx| Workspace::new(window, cx)),
+                )
+                .expect("failed to open the botttle window");
 
-        window
-            .update(cx, |workspace, window, cx| {
-                workspace.focus_active_pane(window, cx);
-            })
-            .ok();
+            window
+                .update(cx, |workspace, window, cx| {
+                    workspace.focus_active_pane(window, cx);
+                })
+                .ok();
 
-        cx.activate(true);
-    });
+            cx.activate(true);
+        });
 }

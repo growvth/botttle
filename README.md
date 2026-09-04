@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./botttle.png" alt="botttle" width="96" />
+  <img src="./assets/logo.png" alt="botttle" width="112" />
 </p>
 
 <p align="center"><strong>botttle</strong></p>
@@ -75,6 +75,13 @@ cargo run --release
 Requires a recent stable Rust toolchain. On Linux, GPUI needs the usual Wayland or
 X11 development packages.
 
+On macOS, wrap it in an app bundle to get the icon in the dock and a real entry in
+Cmd-Tab:
+
+```bash
+scripts/bundle-macos.sh && open target/botttle.app
+```
+
 ## Keys
 
 `⌘` on macOS; `ctrl+shift` elsewhere.
@@ -100,6 +107,7 @@ Everything else goes to the shell untouched, including bare `ctrl` chords.
 ```
 crates/botttle
 ├── main.rs          window setup and app wiring
+├── assets.rs        the logo, compiled into the binary
 ├── workspace.rs     root view: titlebar, tab bar, status bar, actions
 ├── pane.rs          the pane tree (split, close, collapse, render)
 ├── actions.rs       actions and their default key bindings
@@ -113,6 +121,12 @@ crates/botttle
     ├── image_paste.rs clipboard images to files on disk
     └── color.rs     ANSI colors to gpui colors
 ```
+
+## Assets
+
+`assets/logo.png` is the source image: the README header, and the app icon the
+bundle script slices into an `.icns`. A 256px copy is embedded in the binary
+(`crates/botttle/assets/logo-256.png`) and drawn in the titlebar.
 
 ## License
 

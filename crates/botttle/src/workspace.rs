@@ -4,12 +4,13 @@
 use std::collections::HashMap;
 
 use gpui::{
-    div, point, prelude::*, px, Axis, Context, Entity, EntityId, FocusHandle, Focusable,
+    div, img, point, prelude::*, px, Axis, Context, Entity, EntityId, FocusHandle, Focusable,
     MouseButton, MouseDownEvent, Render, ScrollDelta, ScrollHandle, ScrollWheelEvent, SharedString,
     Subscription, Window,
 };
 
 use crate::actions::*;
+use crate::assets;
 use crate::pane::{PaneGroup, RemoveResult};
 use crate::settings::Settings;
 use crate::settings_view::{SettingsView, SettingsViewEvent};
@@ -23,6 +24,8 @@ const TITLEBAR_LEADING_PADDING: f32 = 76.0;
 const TITLEBAR_LEADING_PADDING: f32 = 10.0;
 
 const TITLEBAR_HEIGHT: f32 = 32.0;
+/// The mark in the titlebar, sized to sit inside it with room to breathe.
+const LOGO_SIZE: f32 = 18.0;
 const TAB_BAR_HEIGHT: f32 = 36.0;
 /// Tabs keep their width instead of shrinking, so the strip scrolls once it fills.
 const TAB_MIN_WIDTH: f32 = 110.0;
@@ -300,6 +303,13 @@ impl Workspace {
             .border_color(theme.border)
             .text_size(px(11.0))
             .text_color(theme.text_muted)
+            .gap_2()
+            .child(
+                img(assets::LOGO)
+                    .size(px(LOGO_SIZE))
+                    .flex_none()
+                    .rounded(Theme::radius()),
+            )
             .child("botttle")
             .on_mouse_down(MouseButton::Left, |event: &MouseDownEvent, window, _| {
                 if event.click_count == 2 {
