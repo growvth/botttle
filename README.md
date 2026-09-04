@@ -39,6 +39,9 @@ Early. What works today:
 - **Image paste for coding CLIs** — `ctrl-v` with an image on the clipboard writes
   it to a file and types the path, which is how Claude Code and Codex take
   images. With no image on the clipboard, `ctrl-v` reaches the program unchanged.
+- **Shift-enter is a newline**, not a send: terminals have always sent the same
+  byte for both, so botttle sends `ESC CR` for shift-enter — the sequence Claude
+  Code's own `/terminal-setup` installs into other terminals.
 - A focused pane is marked by its border, so you can see where input will land.
 - A titlebar of its own, and a tab bar that scrolls horizontally once tabs fill it
   (the active tab is scrolled into view when you switch with the keyboard).
@@ -64,8 +67,8 @@ straight to `~/.config/botttle/settings.json`:
 - **Typography** — terminal and interface font families (the terminal list is
   filtered to likely monospace families, with a toggle to show every installed
   one), sizes, line height, and ligatures.
-- **Terminal** — cursor shape (block, bar, underline), image paste, and
-  scrollback depth.
+- **Terminal** — cursor shape (block, bar, underline), shift-enter behaviour,
+  image paste, and scrollback depth.
 
 The file is plain JSON and can be edited by hand; unknown or missing keys fall
 back to defaults.
@@ -125,6 +128,7 @@ at <https://developer.apple.com/account/resources/certificates/add>.
 | `⌘⇧]` / `⌘⇧[` | Next / previous tab |
 | `⌘C` / `⌘V` | Copy selection / paste (image if the clipboard holds one) |
 | `ctrl-V` | Paste a clipboard image as a file path |
+| `shift-enter` | Newline instead of send, in CLIs that take one |
 | `⌘K` | Clear |
 | `⌘=` / `⌘-` / `⌘0` | Font size |
 | `⌘,` | Settings (`esc` closes) |

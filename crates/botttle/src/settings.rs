@@ -59,6 +59,9 @@ pub struct Settings {
     /// Paste an image from the clipboard as a file path, the way dropping a file
     /// onto a terminal works. Turn off to send ctrl-v straight to the program.
     pub paste_images: bool,
+    /// Send `ESC CR` for shift-enter so programs can tell it apart from enter.
+    /// Turn off to send the plain carriage return terminals have always sent.
+    pub shift_enter_newline: bool,
 }
 
 impl Global for Settings {}
@@ -77,6 +80,7 @@ impl Default for Settings {
             cursor_shape: CursorShape::Block,
             scrollback_lines: DEFAULT_SCROLLBACK,
             paste_images: true,
+            shift_enter_newline: true,
         }
     }
 }

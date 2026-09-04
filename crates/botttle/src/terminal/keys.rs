@@ -7,7 +7,15 @@
 use alacritty_terminal::term::TermMode;
 use gpui::{Keystroke, Modifiers};
 
-pub fn to_bytes(keystroke: &Keystroke, mode: TermMode) -> Option<Vec<u8>> {
+/// `shift_enter_newline` sends `ESC CR` for shift-enter instead of the plain
+/// carriage return every terminal has historically sent. Enter and shift-enter
+/// are indistinguishable on the wire otherwise, which is why coding CLIs cannot
+/// tell "send this" from "give me another line" without it.
+pub fn to_bytes(
+    keystroke: &Keystroke,
+    mode: TermMode,
+    shift_enter_newline: bool,
+) -> Option<Vec<u8>> {
     let modifiers = keystroke.modifiers;
     if modifiers.platform || modifiers.function {
         return None;
@@ -17,6 +25,9 @@ pub fn to_bytes(keystroke: &Keystroke, mode: TermMode) -> Option<Vec<u8>> {
     let key = keystroke.key.as_str();
 
     let bytes = match key {
+        "enter" if modifiers.shift && shift_enter_newline && !modifiers.control => {
+            b"\x1b\r".to_vec()
+        }
         "enter" => alt_prefixed(b"\r".to_vec(), modifiers),
         "escape" => alt_prefixed(b"\x1b".to_vec(), modifiers),
         "tab" if modifiers.shift => b"\x1b[Z".to_vec(),
@@ -145,7 +156,7 @@ mod tests {
     }
 
     fn encode(source: &str, mode: TermMode) -> Option<Vec<u8>> {
-        to_bytes(&keystroke(source), mode)
+        to_bytes(&keystroke(source), mode, true)
     }
 
     #[test]
@@ -177,6 +188,22 @@ mod tests {
     #[test]
     fn enter_sends_carriage_return_not_newline() {
         assert_eq!(encode("enter", TermMode::empty()), Some(b"\r".to_vec()));
+    }
+
+    #[test]
+    fn shift_enter_is_distinguishable_from_enter() {
+        assert_eq!(
+            encode("shift-enter", TermMode::empty()),
+            Some(b"\x1b\r".to_vec())
+        );
+    }
+
+    #[test]
+    fn shift_enter_can_be_returned_to_a_plain_carriage_return() {
+        assert_eq!(
+            to_bytes(&keystroke("shift-enter"), TermMode::empty(), false),
+            Some(b"\r".to_vec())
+        );
     }
 
     #[test]

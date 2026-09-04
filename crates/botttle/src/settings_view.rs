@@ -372,6 +372,26 @@ impl SettingsView {
                 )
             })))
             .child(section_header(
+                "Shift-enter",
+                "Send ESC CR so programs can tell shift-enter from enter — what Claude Code and Codex need for a newline instead of a send",
+                theme,
+            ))
+            .child(chip(
+                "chip-shift-enter",
+                if settings.shift_enter_newline {
+                    "On"
+                } else {
+                    "Off — shift-enter sends a plain return"
+                },
+                settings.shift_enter_newline,
+                theme,
+                |_, _, cx| {
+                    Settings::update(cx, |settings| {
+                        settings.shift_enter_newline = !settings.shift_enter_newline
+                    })
+                },
+            ))
+            .child(section_header(
                 "Image paste",
                 "Ctrl-V writes a clipboard image to a file and types its path, which is how Claude Code and Codex take images",
                 theme,

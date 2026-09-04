@@ -235,7 +235,8 @@ impl TerminalView {
         }
 
         let mode = *self.terminal.lock().mode();
-        let Some(bytes) = keys::to_bytes(&event.keystroke, mode) else {
+        let shift_enter_newline = cx.global::<Settings>().shift_enter_newline;
+        let Some(bytes) = keys::to_bytes(&event.keystroke, mode, shift_enter_newline) else {
             return;
         };
 
