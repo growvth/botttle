@@ -333,8 +333,10 @@ mod tests {
     #[test]
     fn a_background_override_replaces_window_and_terminal_grounds() {
         let catalog = FontCatalog::new(vec!["Menlo".to_string()]);
-        let mut settings = Settings::default();
-        settings.background = Some("#123456".to_string());
+        let settings = Settings {
+            background: Some("#123456".to_string()),
+            ..Settings::default()
+        };
 
         let theme = Theme::resolve(&PALETTES[0], &settings, &catalog);
         let expected = crate::settings::parse_hex("#123456").expect("valid hex");
@@ -347,8 +349,10 @@ mod tests {
     #[test]
     fn a_font_that_is_not_installed_falls_back() {
         let catalog = FontCatalog::new(vec!["Menlo".to_string()]);
-        let mut settings = Settings::default();
-        settings.terminal_font_family = Some("Not Installed".to_string());
+        let settings = Settings {
+            terminal_font_family: Some("Not Installed".to_string()),
+            ..Settings::default()
+        };
 
         let theme = Theme::resolve(&PALETTES[0], &settings, &catalog);
         assert_eq!(theme.font_family.as_ref(), "Menlo");

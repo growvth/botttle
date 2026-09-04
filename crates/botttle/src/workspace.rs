@@ -1,11 +1,12 @@
-//! The root view: window chrome, the tab strip, the pane tree of the active tab,
+//! The root view: the titlebar, the tab bar, the pane tree of the active tab,
 //! and the settings panel when it is open.
 
 use std::collections::HashMap;
 
 use gpui::{
-    div, prelude::*, px, Axis, Context, Entity, EntityId, FocusHandle, Focusable, Render,
-    SharedString, Subscription, Window,
+    div, point, prelude::*, px, Axis, Context, Entity, EntityId, FocusHandle, Focusable,
+    MouseButton, MouseDownEvent, Render, ScrollDelta, ScrollHandle, ScrollWheelEvent, SharedString,
+    Subscription, Window,
 };
 
 use crate::actions::*;
@@ -17,15 +18,25 @@ use crate::theme::Theme;
 
 /// Room for the macOS traffic lights, which sit over our own titlebar.
 #[cfg(target_os = "macos")]
-const TITLEBAR_LEADING_PADDING: f32 = 78.0;
+const TITLEBAR_LEADING_PADDING: f32 = 76.0;
 #[cfg(not(target_os = "macos"))]
 const TITLEBAR_LEADING_PADDING: f32 = 10.0;
+
+const TITLEBAR_HEIGHT: f32 = 32.0;
+const TAB_BAR_HEIGHT: f32 = 36.0;
+/// Tabs keep their width instead of shrinking, so the strip scrolls once it fills.
+const TAB_MIN_WIDTH: f32 = 110.0;
+const TAB_MAX_WIDTH: f32 = 240.0;
+/// Wheel notches to pixels when translating vertical scroll into tab movement.
+const TAB_SCROLL_STEP: f32 = 40.0;
 
 pub struct Workspace {
     tabs: Vec<Tab>,
     active_tab: usize,
     focus_handle: FocusHandle,
     settings: Option<Entity<SettingsView>>,
+    /// Lets the active tab be scrolled into view when it is selected by keyboard.
+    tab_scroll: ScrollHandle,
     /// Kept alive for as long as the settings panel is open.
     settings_subscription: Option<Subscription>,
     /// Shown in the status bar; set when something failed in a way worth saying
@@ -48,6 +59,7 @@ impl Workspace {
             active_tab: 0,
             focus_handle: cx.focus_handle(),
             settings: None,
+            tab_scroll: ScrollHandle::new(),
             settings_subscription: None,
             status: None,
         };
@@ -70,6 +82,7 @@ impl Workspace {
             subscriptions: map,
         });
         self.active_tab = self.tabs.len() - 1;
+        self.tab_scroll.scroll_to_item(self.active_tab);
         self.focus_pane(&pane, window, cx);
         cx.notify();
     }
@@ -188,6 +201,7 @@ impl Workspace {
         }
 
         self.active_tab = self.active_tab.min(self.tabs.len() - 1);
+        self.tab_scroll.scroll_to_item(self.active_tab);
         self.focus_active_pane(window, cx);
         cx.notify();
     }
@@ -197,6 +211,7 @@ impl Workspace {
             return;
         }
         self.active_tab = index;
+        self.tab_scroll.scroll_to_item(index);
         self.focus_active_pane(window, cx);
         cx.notify();
     }
@@ -270,97 +285,162 @@ impl Workspace {
         });
     }
 
-    fn render_tab_strip(&self, theme: &Theme, cx: &mut Context<Self>) -> impl IntoElement {
-        let tabs =
-            self.tabs
-                .iter()
-                .enumerate()
-                .map(|(index, tab)| {
-                    let is_active = index == self.active_tab;
-                    let panes = tab.group.panes();
-                    let focused_pane = panes
-                        .iter()
-                        .find(|pane| pane.entity_id() == tab.active_pane)
-                        .or_else(|| panes.first());
-                    let title = focused_pane
-                        .map(|pane| pane.read(cx).title())
-                        .unwrap_or_else(|| SharedString::from("shell"));
-                    let exited = focused_pane.is_some_and(|pane| pane.read(cx).has_exited());
-                    let dot = if exited {
-                        theme.danger
-                    } else if is_active {
-                        theme.accent
-                    } else {
-                        theme.text_muted
-                    };
+    /// The window's own bar: traffic lights, the app name, and drag area. Kept
+    /// separate from the tabs so the two rows can't be mistaken for each other.
+    fn render_titlebar(&self, theme: &Theme) -> impl IntoElement {
+        div()
+            .flex()
+            .items_center()
+            .flex_none()
+            .h(px(TITLEBAR_HEIGHT))
+            .pl(px(TITLEBAR_LEADING_PADDING))
+            .pr_3()
+            .bg(theme.surface)
+            .border_b_1()
+            .border_color(theme.border)
+            .text_size(px(11.0))
+            .text_color(theme.text_muted)
+            .child("botttle")
+            .on_mouse_down(MouseButton::Left, |event: &MouseDownEvent, window, _| {
+                if event.click_count == 2 {
+                    window.zoom_window();
+                } else {
+                    window.start_window_move();
+                }
+            })
+    }
 
-                    div()
-                        .id(("tab", index))
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .h(px(26.0))
-                        .px_3()
-                        .rounded(Theme::radius())
-                        .child(div().size(px(6.0)).rounded(px(3.0)).bg(dot))
-                        .when(panes.len() > 1, |element| {
-                            element.child(
-                                div()
-                                    .text_color(theme.text_muted)
-                                    .child(format!("{}", panes.len())),
-                            )
-                        })
-                        .child(div().min_w_0().truncate().child(title))
-                        .when(is_active, |element| {
-                            element.bg(theme.elevated).text_color(theme.text)
-                        })
-                        .when(!is_active, |element| {
-                            element
-                                .text_color(theme.text_muted)
-                                .hover(|style| style.bg(theme.elevated))
-                        })
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            this.activate_tab(index, window, cx)
-                        }))
-                        .child(
-                            div()
-                                .id(("close-tab", index))
-                                .px_1()
-                                .rounded(px(2.0))
-                                .text_color(theme.text_muted)
-                                .hover(|style| style.text_color(theme.danger))
-                                .child("×")
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    cx.stop_propagation();
-                                    this.close_tab(index, window, cx);
-                                })),
-                        )
-                })
-                .collect::<Vec<_>>();
+    fn render_tab_bar(&self, theme: &Theme, cx: &mut Context<Self>) -> impl IntoElement {
+        let tabs = self
+            .tabs
+            .iter()
+            .enumerate()
+            .map(|(index, tab)| self.render_tab(index, tab, theme, cx))
+            .collect::<Vec<_>>();
 
         div()
             .flex()
             .items_center()
+            .flex_none()
+            .h(px(TAB_BAR_HEIGHT))
+            .px_1()
             .gap_1()
-            .h(px(38.0))
-            .pl(px(TITLEBAR_LEADING_PADDING))
-            .pr_2()
-            .bg(theme.surface)
+            .bg(theme.background)
             .border_b_1()
             .border_color(theme.border)
-            .children(tabs)
+            .child(
+                div()
+                    .id("tab-strip")
+                    .flex()
+                    .flex_1()
+                    .min_w_0()
+                    .items_center()
+                    .gap_1()
+                    .overflow_x_scroll()
+                    .track_scroll(&self.tab_scroll)
+                    // Trackpads and mice that only scroll vertically still need to
+                    // reach tabs that ran off the edge.
+                    .on_scroll_wheel(cx.listener(|this, event: &ScrollWheelEvent, _, cx| {
+                        let vertical = match event.delta {
+                            ScrollDelta::Lines(delta) => delta.y * TAB_SCROLL_STEP,
+                            ScrollDelta::Pixels(delta) => f32::from(delta.y),
+                        };
+                        if vertical == 0.0 {
+                            return;
+                        }
+                        let offset = this.tab_scroll.offset();
+                        this.tab_scroll
+                            .set_offset(point(offset.x + px(vertical), offset.y));
+                        cx.notify();
+                    }))
+                    .children(tabs),
+            )
             .child(
                 div()
                     .id("new-tab")
                     .flex()
+                    .flex_none()
                     .items_center()
                     .justify_center()
                     .size(px(24.0))
                     .rounded(Theme::radius())
                     .text_color(theme.text_muted)
                     .hover(|style| style.bg(theme.elevated).text_color(theme.text))
+                    .cursor_pointer()
                     .child("+")
                     .on_click(cx.listener(|this, _, window, cx| this.open_tab(window, cx))),
+            )
+    }
+
+    fn render_tab(
+        &self,
+        index: usize,
+        tab: &Tab,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let is_active = index == self.active_tab;
+        let panes = tab.group.panes();
+        let focused_pane = panes
+            .iter()
+            .find(|pane| pane.entity_id() == tab.active_pane)
+            .or_else(|| panes.first());
+        let title = focused_pane
+            .map(|pane| pane.read(cx).title())
+            .unwrap_or_else(|| SharedString::from("shell"));
+        let exited = focused_pane.is_some_and(|pane| pane.read(cx).has_exited());
+        let dot = if exited {
+            theme.danger
+        } else if is_active {
+            theme.accent
+        } else {
+            theme.text_muted
+        };
+
+        div()
+            .id(("tab", index))
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap_2()
+            .h(px(26.0))
+            .px_2()
+            .min_w(px(TAB_MIN_WIDTH))
+            .max_w(px(TAB_MAX_WIDTH))
+            .rounded(Theme::radius())
+            .cursor_pointer()
+            .child(div().size(px(6.0)).flex_none().rounded(px(3.0)).bg(dot))
+            .when(panes.len() > 1, |element| {
+                element.child(
+                    div()
+                        .flex_none()
+                        .text_color(theme.text_muted)
+                        .child(format!("{}", panes.len())),
+                )
+            })
+            .child(div().flex_1().min_w_0().truncate().child(title))
+            .when(is_active, |element| {
+                element.bg(theme.elevated).text_color(theme.text)
+            })
+            .when(!is_active, |element| {
+                element
+                    .text_color(theme.text_muted)
+                    .hover(|style| style.bg(theme.elevated))
+            })
+            .on_click(cx.listener(move |this, _, window, cx| this.activate_tab(index, window, cx)))
+            .child(
+                div()
+                    .id(("close-tab", index))
+                    .flex_none()
+                    .px_1()
+                    .rounded(px(2.0))
+                    .text_color(theme.text_muted)
+                    .hover(|style| style.text_color(theme.danger))
+                    .child("×")
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        cx.stop_propagation();
+                        this.close_tab(index, window, cx);
+                    })),
             )
     }
 
@@ -484,7 +564,8 @@ impl Render for Workspace {
             .on_action(
                 cx.listener(|this, _: &CloseSettings, window, cx| this.close_settings(window, cx)),
             )
-            .child(self.render_tab_strip(&theme, cx))
+            .child(self.render_titlebar(&theme))
+            .child(self.render_tab_bar(&theme, cx))
             .child(div().flex().flex_1().min_h_0().p_2().children(content))
             .child(self.render_status_bar(&theme, cx))
             .children(self.settings.clone())

@@ -39,7 +39,8 @@ fn main() {
                     titlebar: Some(TitlebarOptions {
                         title: Some("botttle".into()),
                         appears_transparent: true,
-                        traffic_light_position: Some(point(px(16.0), px(16.0))),
+                        // Centred in the 32px titlebar drawn by the workspace.
+                        traffic_light_position: Some(point(px(14.0), px(10.0))),
                     }),
                     window_min_size: Some(size(px(600.0), px(400.0))),
                     app_id: Some("dev.botttle".to_string()),

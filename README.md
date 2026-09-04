@@ -33,6 +33,8 @@ Early. What works today:
 - Mouse selection (click, double-click for words, triple-click for lines), copy
   and paste, scrollback via the wheel, live font resizing.
 - A focused pane is marked by its border, so you can see where input will land.
+- A titlebar of its own, and a tab bar that scrolls horizontally once tabs fill it
+  (the active tab is scrolled into view when you switch with the keyboard).
 - **12 themes** — six families in light and dark — and a **settings screen**.
 - Window title tracking (OSC 0/2), clipboard escapes (OSC 52), and color queries.
 
@@ -93,7 +95,7 @@ Everything else goes to the shell untouched, including bare `ctrl` chords.
 ```
 crates/botttle
 ├── main.rs          window setup and app wiring
-├── workspace.rs     root view: tab strip, status bar, actions
+├── workspace.rs     root view: titlebar, tab bar, status bar, actions
 ├── pane.rs          the pane tree (split, close, collapse, render)
 ├── actions.rs       actions and their default key bindings
 ├── settings.rs      user settings, persisted as JSON
