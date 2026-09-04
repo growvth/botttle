@@ -6,25 +6,29 @@
 #   scripts/bundle-macos.sh --debug              # reuse the existing debug build
 #   scripts/bundle-macos.sh --sign "identity"    # sign with a specific identity
 #   scripts/bundle-macos.sh --no-sign            # leave it unsigned
+#   scripts/bundle-macos.sh --notarize           # also notarize and staple it
 #   scripts/bundle-macos.sh --install            # also copy it to /Applications
 #
 # Signing picks the best identity in the keychain: a Developer ID Application
 # certificate if there is one (the only kind that can be notarized for other
 # people's machines), otherwise an Apple Development certificate, otherwise an
 # ad-hoc signature. All three are enough to run the app on this machine; only a
-# notarized Developer ID build runs cleanly on someone else's.
+# notarized Developer ID build runs cleanly on someone else's — that is what
+# --notarize adds, using the App Store Connect key `asc` already holds.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 profile="release"
 identity="auto"
 install=false
+notarize=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --debug) profile="debug" ;;
     --sign) identity="$2"; shift ;;
     --no-sign) identity="" ;;
+    --notarize) notarize=true ;;
     --install) install=true ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
@@ -105,6 +109,20 @@ if [ -n "$identity" ]; then
 fi
 
 echo "built $app"
+
+if $notarize; then
+  if [ -z "$identity" ] || [ "$identity" = "-" ]; then
+    echo "notarization needs a Developer ID Application signature" >&2
+    exit 2
+  fi
+  zip="$root/target/botttle.zip"
+  ditto -c -k --keepParent "$app" "$zip"
+  asc notarization submit --file "$zip" --wait --output table
+  # Stapling fails unless Apple actually accepted the submission, so this is
+  # also the check that the notarization succeeded.
+  xcrun stapler staple "$app"
+  spctl -a -t exec -vv "$app"
+fi
 
 if $install; then
   destination="/Applications/botttle.app"

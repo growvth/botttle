@@ -91,18 +91,21 @@ certificate if you have one, otherwise an Apple Development certificate,
 otherwise an ad-hoc signature. All three run fine on the machine that built them.
 Pass `--sign "<identity>"` to choose, or `--no-sign` to skip it.
 
-Sharing the app with someone else additionally needs a Developer ID certificate
-and notarization, which Gatekeeper checks on any app that arrives from elsewhere:
+Sharing the app with someone else needs notarization too, which Gatekeeper checks
+on any app that arrives from elsewhere:
 
 ```bash
-scripts/bundle-macos.sh --sign "Developer ID Application: YOUR NAME (TEAMID)"
-ditto -c -k --keepParent target/botttle.app target/botttle.zip
-xcrun notarytool submit target/botttle.zip --keychain-profile <profile> --wait
-xcrun stapler staple target/botttle.app
+scripts/bundle-macos.sh --notarize --install
 ```
 
-(`<profile>` is a credential set you create once with
-`xcrun notarytool store-credentials`.)
+That signs with the Developer ID identity, submits the zip through
+[`asc`](https://github.com/rorkai/asc) using the App Store Connect key it already
+holds, staples the ticket, and prints the Gatekeeper verdict.
+
+The one part that can't be scripted is creating the Developer ID Application
+certificate itself: the App Store Connect API refuses it with *"This operation can
+only be performed by the Account Holder"*, so it has to be created once, by hand,
+at <https://developer.apple.com/account/resources/certificates/add>.
 
 ## Keys
 
