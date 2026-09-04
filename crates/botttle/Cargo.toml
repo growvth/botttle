@@ -1,0 +1,12 @@
+[package]
+name = "botttle"
+description = "An agentic development environment: a terminal with tabs, panes, and room for agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gpui.workspace = true
+alacritty_terminal.workspace = true
+anyhow.workspace = true
+futures.workspace = true

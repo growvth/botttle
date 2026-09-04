@@ -1,101 +1,85 @@
 <p align="center">
-  <img src="./packages/ui/public/botttle.svg" alt="botttle logo" width="120" />
+  <img src="./botttle.png" alt="botttle" width="96" />
 </p>
 
-<p align="center">
-  <strong>botttle</strong>
-</p>
+<p align="center"><strong>botttle</strong></p>
 
 <p align="center">
-  A self hosted client portal for freelancers to manage projects, clients, and payments in one place.
-</p>
-
-<p align="center">
-  <a href="https://bun.sh"><img src="https://img.shields.io/badge/Built%20with-Bun-000000?logo=bun&logoColor=ffffff" alt="Bun" /></a>
-  <a href="https://fastify.dev"><img src="https://img.shields.io/badge/API-Fastify-000000?logo=fastify&logoColor=ffffff" alt="Fastify API" /></a>
-  <a href="https://react.dev"><img src="https://img.shields.io/badge/App-React-20232a?logo=react&logoColor=61dafb" alt="React web app" /></a>
+  An agentic development environment — a terminal workspace with tabs and panes,
+  built in Rust on <a href="https://gpui.rs">GPUI</a>.
 </p>
 
 ---
 
-## Why botttle
+## What this is
 
-Freelancers and small studios are often stuck between heavyweight agency tools and rigid SaaS billing apps. botttle gives you your own client portal that you control, with a modern UI and a focus on day to day work.
+botttle is a GPU-rendered terminal you can split and tab like an editor, built to
+grow into a place where agents work next to you rather than in a separate window.
 
-- **All your work in one place**  
-  Projects, milestones, tasks, invoices, time tracking, comments, and file uploads are scoped per project and client.
+The terminal comes first, because everything an agent does in a development loop —
+running builds, reading logs, driving tools — already happens in one. The pane
+tree, tab model, and event plumbing are the parts that outlive the terminal.
 
-- **Clear, professional invoicing**  
-  Create project linked invoices with line items, tax and currency support, track payments and download polished PDFs you can send to clients.
+## Status
 
-- **Client friendly portal**  
-  Invite clients to log in, see only their projects and invoices, and keep everyone aligned without endless email threads.
+Early. What works today:
 
-- **Designed for self hosting**  
-  Keep your data where you want it, and customize the portal as your freelance practice grows.
+- Real PTYs — each pane runs your login shell through a full ANSI emulator
+  (`alacritty_terminal`), with 24-bit color, text attributes, and 10k lines of
+  scrollback.
+- **Tabs**, each holding its own pane layout.
+- **Splittable panes** — split right or down, any depth; splitting along an axis a
+  pane already lives on adds a sibling instead of nesting.
+- Mouse selection (click, double-click for words, triple-click for lines), copy
+  and paste, scrollback via the wheel, live font resizing.
+- Window title tracking (OSC 0/2), clipboard escapes (OSC 52), and color queries.
 
-## Current status
+Not there yet: IME composition, drag-to-resize splits, search, a config file, and
+the agent layer itself.
 
-botttle is in active development. The current build includes:
-
-- Authentication, clients, projects, milestones, and tasks
-- Invoicing with payments, PDF export, and Lemon Squeezy webhook hooks (checkout custom data `invoice_id`)
-- Time tracking with billable flags, per-project CSV export, and reports (`/api/reports/summary`, `/api/reports/time`)
-- Dashboard charts (Recharts): workload, revenue snapshot, time split and trend
-- Project comments and file uploads (local disk; API ready for S3-style storage later)
-- Client portal: draft invoices hidden from clients, read-only project milestones, optional **Pay online** link via `INVOICE_PAYMENT_LINK_TEMPLATE`
-- Per-project **time reports** (admin): date range, billable vs non-billable, chart, CSV export (`/projects/:id/reports`)
-- Admin **audit log** (who changed what): in-app `/audit-logs`, API `GET /api/audit-logs`
-
-## Local development
-
-PostgreSQL is required. From the repo root:
+## Running it
 
 ```bash
-docker compose up -d postgres
-cp apps/api/.env.example apps/api/.env
-# Set JWT_SECRET and REFRESH_SECRET in apps/api/.env, then:
-cd packages/db && DATABASE_URL="postgresql://botttle:botttle@127.0.0.1:5432/botttle" bunx prisma migrate deploy
-cd ../..
-bun run dev:api   # terminal 1
-bun run dev:web   # terminal 2
+cargo run --release
 ```
 
-**Migrations on every environment:** run `prisma migrate deploy` against the target database whenever you deploy (new migration = required before the new code runs). The Docker API image runs this automatically via `docker/entrypoint-api.sh` before starting the server. For local API only, you can set `RUN_MIGRATIONS_ON_BOOT=true` in `apps/api/.env` so `bun run dev:api` applies pending migrations first (optional).
+Requires a recent stable Rust toolchain. On Linux, GPUI needs the usual Wayland or
+X11 development packages.
 
-If a user forgets their password and you do not yet have email reset, an operator can set a new bcrypt hash in PostgreSQL or use a one-off script against `users.password_hash` (same rounds as the API’s `hashPassword`).
+## Keys
 
-### Optional integrations (all API-side; no secrets in the Vite web app)
+`⌘` on macOS; `ctrl+shift` elsewhere.
 
-| Feature | What to configure |
-|--------|-------------------|
-| **Transactional email** | `REDIS_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_PUBLIC_URL`. Run **`bun run dev:worker`** (or the Docker `worker` service) to process the queue. |
-| **Lemon checkout links** | Webhook: `LEMONSQUEEZY_WEBHOOK_SECRET` + dashboard webhook URL. **Dynamic checkouts:** `LEMONSQUEEZY_API_KEY` + `LEMONSQUEEZY_DEFAULT_VARIANT_ID` (or per-invoice variant in the UI). |
-| **S3 file uploads** | `FILE_STORAGE=s3`, `S3_BUCKET`, `AWS_REGION`, credentials. Web keeps uploading **via the API** only. |
-| **Audit: PDF views** | `GET /invoices/:id/pdf` records `INVOICE_PDF_VIEWED`. |
-| **Password reset emails** | Same email config as transactional email. Enables `/forgot-password` → `/reset-password` flow. |
+| Chord | Action |
+| --- | --- |
+| `⌘T` | New tab |
+| `⌘W` | Close pane (closes the tab with the last pane) |
+| `⌘⇧W` | Close tab |
+| `⌘D` / `⌘⇧D` | Split right / split down |
+| `⌘]` / `⌘[` | Focus next / previous pane |
+| `⌘⇧]` / `⌘⇧[` | Next / previous tab |
+| `⌘C` / `⌘V` | Copy selection / paste |
+| `⌘K` | Clear |
+| `⌘=` / `⌘-` / `⌘0` | Font size |
 
-## Docker (API + web + Postgres + Redis)
+Everything else goes to the shell untouched, including bare `ctrl` chords.
 
-```bash
-# Optional: export JWT_SECRET=... REFRESH_SECRET=... (defaults are insecure)
-docker compose up --build
+## Layout
+
+```
+crates/botttle
+├── main.rs        window setup and app wiring
+├── workspace.rs   root view: tab strip, status bar, actions
+├── pane.rs        the pane tree (split, close, collapse, render)
+├── actions.rs     actions and their default key bindings
+├── theme.rs       colors, fonts, sizing — a gpui global
+└── terminal/
+    ├── mod.rs     PTY + emulator, and the bridge to the main thread
+    ├── view.rs    grid rendering, keyboard, mouse, selection
+    ├── keys.rs    keystrokes to terminal byte sequences
+    └── color.rs   ANSI colors to gpui colors
 ```
 
-- **Web UI:** http://localhost:8080 (Nginx proxies `/api` to the API)
-- **API:** http://localhost:3001
-- **Postgres:** localhost `5432` (user/password/db: `botttle`)
-- **Redis:** localhost `6379` — used by the **email worker** (BullMQ) when `REDIS_URL` is set; optional if you do not use transactional email.
+## License
 
-The API container runs **`bunx prisma migrate deploy`** in `packages/db` on startup so schema changes (including `notifications` and `audit_logs`) are applied before traffic hits the app.
-
-Compose also defines a **`worker`** service (same API image, runs `bun apps/api/dist/worker.js`) for the email queue when `REDIS_URL` / Resend are set.
-
-There is a separate **`apps/marketing`** site; upcoming work may include richer client-only UX and deeper analytics in the main app.
-
-### Health check (optional deeper checks)
-
-`GET /health` always returns a basic response. To enable deeper checks:
-
-- Set `HEALTH_CHECK_DB=true` to validate the API can reach PostgreSQL.
-- Set `HEALTH_CHECK_REDIS=true` to validate Redis is configured (for the email worker).
+MIT — see [LICENSE](./LICENSE).
