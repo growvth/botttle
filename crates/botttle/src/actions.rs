@@ -25,6 +25,8 @@ actions!(
         IncreaseFontSize,
         DecreaseFontSize,
         ResetFontSize,
+        OpenSettings,
+        CloseSettings,
         Quit,
     ]
 );
@@ -56,6 +58,8 @@ pub fn init(cx: &mut App) {
         KeyBinding::new(&format!("{MOD}-="), IncreaseFontSize, context),
         KeyBinding::new(&format!("{MOD}--"), DecreaseFontSize, context),
         KeyBinding::new(&format!("{MOD}-0"), ResetFontSize, context),
+        KeyBinding::new(&format!("{MOD}-,"), OpenSettings, context),
+        KeyBinding::new("escape", CloseSettings, Some("Settings")),
         KeyBinding::new(&format!("{MOD}-q"), Quit, None),
     ];
 

@@ -155,17 +155,19 @@ impl Member {
     fn render(&self, active: Option<EntityId>, theme: &Theme) -> AnyElement {
         match self {
             Member::Pane(pane) => {
-                let is_active = active == Some(pane.entity_id());
+                let is_focused = active == Some(pane.entity_id());
                 div()
                     .flex()
                     .flex_1()
                     .min_w_0()
                     .min_h_0()
                     .overflow_hidden()
-                    .rounded_md()
+                    .rounded(Theme::radius())
                     .border_1()
-                    .border_color(if is_active {
-                        theme.border_active
+                    // The focused pane is marked by its border alone: enough to
+                    // find at a glance, quiet enough to ignore while reading output.
+                    .border_color(if is_focused {
+                        theme.focus_ring()
                     } else {
                         theme.border
                     })

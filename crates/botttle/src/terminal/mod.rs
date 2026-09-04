@@ -24,8 +24,6 @@ use anyhow::{Context as _, Result};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use gpui::{px, Pixels, Size};
 
-const SCROLLBACK_LINES: usize = 10_000;
-
 /// The geometry of a terminal, in both pixels and cells.
 ///
 /// The emulator only cares about rows and columns; the PTY is also told the pixel
@@ -124,12 +122,13 @@ impl Terminal {
     pub fn new(
         size: TerminalSize,
         working_directory: Option<PathBuf>,
+        scrollback_lines: usize,
     ) -> Result<(Self, UnboundedReceiver<AlacrittyEvent>)> {
         let (tx, rx) = unbounded();
         let proxy = EventProxy(tx);
 
         let config = Config {
-            scrolling_history: SCROLLBACK_LINES,
+            scrolling_history: scrollback_lines,
             ..Config::default()
         };
         let term = Arc::new(FairMutex::new(Term::new(config, &size, proxy.clone())));
@@ -246,7 +245,7 @@ mod tests {
                 height: px(320.0),
             },
         );
-        let (terminal, _events) = Terminal::new(size, std::env::current_dir().ok())
+        let (terminal, _events) = Terminal::new(size, std::env::current_dir().ok(), 1_000)
             .expect("a pty and a shell should be available");
 
         assert_eq!(size.columns(), 80);

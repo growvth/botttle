@@ -7,6 +7,8 @@
 
 mod actions;
 mod pane;
+mod settings;
+mod settings_view;
 mod terminal;
 mod theme;
 mod workspace;
@@ -23,6 +25,7 @@ fn main() {
     alacritty_terminal::tty::setup_env();
 
     Application::new().run(|cx: &mut App| {
+        settings::init(cx);
         theme::init(cx);
         actions::init(cx);
 

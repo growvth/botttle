@@ -1,4 +1,5 @@
-//! The root view: window chrome, the tab strip, and the pane tree of the active tab.
+//! The root view: window chrome, the tab strip, the pane tree of the active tab,
+//! and the settings panel when it is open.
 
 use std::collections::HashMap;
 
@@ -9,6 +10,8 @@ use gpui::{
 
 use crate::actions::*;
 use crate::pane::{PaneGroup, RemoveResult};
+use crate::settings::Settings;
+use crate::settings_view::{SettingsView, SettingsViewEvent};
 use crate::terminal::view::{TerminalView, TerminalViewEvent};
 use crate::theme::Theme;
 
@@ -22,6 +25,9 @@ pub struct Workspace {
     tabs: Vec<Tab>,
     active_tab: usize,
     focus_handle: FocusHandle,
+    settings: Option<Entity<SettingsView>>,
+    /// Kept alive for as long as the settings panel is open.
+    settings_subscription: Option<Subscription>,
     /// Shown in the status bar; set when something failed in a way worth saying
     /// out loud, such as a shell that would not start.
     status: Option<SharedString>,
@@ -30,8 +36,9 @@ pub struct Workspace {
 struct Tab {
     group: PaneGroup,
     active_pane: EntityId,
-    /// Keeps each pane's title and exit notifications flowing to the tab strip.
-    subscriptions: HashMap<EntityId, Subscription>,
+    /// Per pane: title/exit notifications, and focus tracking so clicking a pane
+    /// makes it the target of the next split or close.
+    subscriptions: HashMap<EntityId, Vec<Subscription>>,
 }
 
 impl Workspace {
@@ -40,6 +47,8 @@ impl Workspace {
             tabs: Vec::new(),
             active_tab: 0,
             focus_handle: cx.focus_handle(),
+            settings: None,
+            settings_subscription: None,
             status: None,
         };
         workspace.open_tab(window, cx);
@@ -51,13 +60,14 @@ impl Workspace {
             return;
         };
 
-        let mut subscriptions = HashMap::new();
-        subscriptions.insert(pane.entity_id(), self.watch_pane(&pane, cx));
+        let subscriptions = self.watch_pane(&pane, window, cx);
+        let mut map = HashMap::new();
+        map.insert(pane.entity_id(), subscriptions);
 
         self.tabs.push(Tab {
             group: PaneGroup::new(pane.clone()),
             active_pane: pane.entity_id(),
-            subscriptions,
+            subscriptions: map,
         });
         self.active_tab = self.tabs.len() - 1;
         self.focus_pane(&pane, window, cx);
@@ -79,11 +89,31 @@ impl Workspace {
         }
     }
 
-    fn watch_pane(&self, pane: &Entity<TerminalView>, cx: &mut Context<Self>) -> Subscription {
-        cx.subscribe(pane, |_, _, event: &TerminalViewEvent, cx| match event {
-            // Both change what the tab strip should say.
-            TerminalViewEvent::TitleChanged | TerminalViewEvent::Exited => cx.notify(),
-        })
+    fn watch_pane(
+        &self,
+        pane: &Entity<TerminalView>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Vec<Subscription> {
+        let id = pane.entity_id();
+        let focus_handle = pane.focus_handle(cx);
+
+        vec![
+            cx.subscribe(pane, |_, _, event: &TerminalViewEvent, cx| match event {
+                // Both change what the tab strip should say.
+                TerminalViewEvent::TitleChanged | TerminalViewEvent::Exited => cx.notify(),
+            }),
+            // Clicking into a pane focuses it directly, so the workspace learns
+            // which pane is current by watching focus rather than clicks.
+            cx.on_focus_in(&focus_handle, window, move |this, _, cx| {
+                if let Some(tab) = this.tabs.get_mut(this.active_tab) {
+                    if tab.active_pane != id {
+                        tab.active_pane = id;
+                        cx.notify();
+                    }
+                }
+            }),
+        ]
     }
 
     fn focus_pane(
@@ -115,14 +145,14 @@ impl Workspace {
             return;
         };
 
-        let subscription = self.watch_pane(&pane, cx);
+        let subscriptions = self.watch_pane(&pane, window, cx);
         let Some(tab) = self.tabs.get_mut(self.active_tab) else {
             return;
         };
         if !tab.group.split(target, axis, pane.clone()) {
             return;
         }
-        tab.subscriptions.insert(pane.entity_id(), subscription);
+        tab.subscriptions.insert(pane.entity_id(), subscriptions);
         self.focus_pane(&pane, window, cx);
     }
 
@@ -204,17 +234,40 @@ impl Workspace {
         self.focus_pane(&pane, window, cx);
     }
 
+    fn open_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.settings.is_some() {
+            return;
+        }
+
+        let view = cx.new(SettingsView::new);
+        self.settings_subscription = Some(cx.subscribe_in(
+            &view,
+            window,
+            |this, _, _: &SettingsViewEvent, window, cx| this.close_settings(window, cx),
+        ));
+        window.focus(&view.focus_handle(cx));
+        self.settings = Some(view);
+        cx.notify();
+    }
+
+    fn close_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.settings.take().is_some() {
+            self.settings_subscription = None;
+            self.focus_active_pane(window, cx);
+            cx.notify();
+        }
+    }
+
     fn adjust_font_size(&mut self, delta: f32, cx: &mut Context<Self>) {
-        cx.update_global::<Theme, _>(|theme, _| {
-            let size = theme.font_size;
-            theme.set_font_size(px(f32::from(size) + delta));
+        Settings::update(cx, |settings| {
+            settings.terminal_font_size = (settings.terminal_font_size + delta).clamp(6.0, 40.0);
         });
-        cx.refresh_windows();
     }
 
     fn reset_font_size(&mut self, cx: &mut Context<Self>) {
-        cx.update_global::<Theme, _>(|theme, _| theme.set_font_size(px(13.0)));
-        cx.refresh_windows();
+        Settings::update(cx, |settings| {
+            settings.terminal_font_size = crate::settings::DEFAULT_FONT_SIZE;
+        });
     }
 
     fn render_tab_strip(&self, theme: &Theme, cx: &mut Context<Self>) -> impl IntoElement {
@@ -248,9 +301,8 @@ impl Workspace {
                         .gap_2()
                         .h(px(26.0))
                         .px_3()
-                        .rounded_md()
-                        .text_size(px(12.0))
-                        .child(div().size(px(6.0)).rounded_full().bg(dot))
+                        .rounded(Theme::radius())
+                        .child(div().size(px(6.0)).rounded(px(3.0)).bg(dot))
                         .when(panes.len() > 1, |element| {
                             element.child(
                                 div()
@@ -274,7 +326,7 @@ impl Workspace {
                             div()
                                 .id(("close-tab", index))
                                 .px_1()
-                                .rounded_sm()
+                                .rounded(px(2.0))
                                 .text_color(theme.text_muted)
                                 .hover(|style| style.text_color(theme.danger))
                                 .child("×")
@@ -304,7 +356,7 @@ impl Workspace {
                     .items_center()
                     .justify_center()
                     .size(px(24.0))
-                    .rounded_md()
+                    .rounded(Theme::radius())
                     .text_color(theme.text_muted)
                     .hover(|style| style.bg(theme.elevated).text_color(theme.text))
                     .child("+")
@@ -312,7 +364,7 @@ impl Workspace {
             )
     }
 
-    fn render_status_bar(&self, theme: &Theme) -> impl IntoElement {
+    fn render_status_bar(&self, theme: &Theme, cx: &mut Context<Self>) -> impl IntoElement {
         let panes = self
             .tabs
             .get(self.active_tab)
@@ -322,11 +374,12 @@ impl Workspace {
         let left = match &self.status {
             Some(status) => div().text_color(theme.danger).child(status.clone()),
             None => div().text_color(theme.text_muted).child(format!(
-                "{} tab{} · {} pane{}",
+                "{} tab{} · {} pane{} · {}",
                 self.tabs.len(),
                 if self.tabs.len() == 1 { "" } else { "s" },
                 panes,
-                if panes == 1 { "" } else { "s" }
+                if panes == 1 { "" } else { "s" },
+                theme.name
             )),
         };
 
@@ -343,8 +396,14 @@ impl Workspace {
             .child(left)
             .child(
                 div()
+                    .id("open-settings")
+                    .px_2()
+                    .rounded(px(2.0))
                     .text_color(theme.text_muted)
-                    .child(SharedString::from(shortcut_hint())),
+                    .hover(|style| style.text_color(theme.text))
+                    .cursor_pointer()
+                    .child(SharedString::from(shortcut_hint()))
+                    .on_click(cx.listener(|this, _, window, cx| this.open_settings(window, cx))),
             )
     }
 }
@@ -364,11 +423,13 @@ impl Render for Workspace {
         div()
             .key_context(WORKSPACE_CONTEXT)
             .track_focus(&self.focus_handle)
+            .relative()
             .size_full()
             .flex()
             .flex_col()
             .bg(theme.background)
             .text_color(theme.text)
+            .text_size(theme.ui_font_size)
             .font_family(theme.ui_font_family.clone())
             .on_action(cx.listener(|this, _: &NewTab, window, cx| this.open_tab(window, cx)))
             .on_action(cx.listener(|this, _: &CloseTab, window, cx| {
@@ -417,16 +478,23 @@ impl Render for Workspace {
                 cx.listener(|this, _: &DecreaseFontSize, _, cx| this.adjust_font_size(-1.0, cx)),
             )
             .on_action(cx.listener(|this, _: &ResetFontSize, _, cx| this.reset_font_size(cx)))
+            .on_action(
+                cx.listener(|this, _: &OpenSettings, window, cx| this.open_settings(window, cx)),
+            )
+            .on_action(
+                cx.listener(|this, _: &CloseSettings, window, cx| this.close_settings(window, cx)),
+            )
             .child(self.render_tab_strip(&theme, cx))
             .child(div().flex().flex_1().min_h_0().p_2().children(content))
-            .child(self.render_status_bar(&theme))
+            .child(self.render_status_bar(&theme, cx))
+            .children(self.settings.clone())
     }
 }
 
 fn shortcut_hint() -> &'static str {
     if cfg!(target_os = "macos") {
-        "⌘T tab · ⌘D split right · ⌘⇧D split down · ⌘] next pane · ⌘W close"
+        "⌘T tab · ⌘D split · ⌘] pane · ⌘, settings"
     } else {
-        "ctrl+shift T tab · D split right · shift+D split down · ] next pane · W close"
+        "ctrl+shift T tab · D split · ] pane · , settings"
     }
 }

@@ -32,10 +32,33 @@ Early. What works today:
   pane already lives on adds a sibling instead of nesting.
 - Mouse selection (click, double-click for words, triple-click for lines), copy
   and paste, scrollback via the wheel, live font resizing.
+- A focused pane is marked by its border, so you can see where input will land.
+- **12 themes** — six families in light and dark — and a **settings screen**.
 - Window title tracking (OSC 0/2), clipboard escapes (OSC 52), and color queries.
 
-Not there yet: IME composition, drag-to-resize splits, search, a config file, and
-the agent layer itself.
+Not there yet: IME composition, drag-to-resize splits, search, and the agent layer
+itself.
+
+## Themes
+
+Botttle, Gruvbox, One, Cursor, OpenCode, and VS Code, each in a light and a dark
+variant. Gruvbox, One, and VS Code use those projects' published terminal
+palettes; Cursor and OpenCode are approximations matched by eye.
+
+## Settings
+
+`⌘,` (or `ctrl+shift+,`) opens the settings screen, and every change is written
+straight to `~/.config/botttle/settings.json`:
+
+- **Appearance** — theme, and a background override that replaces the window and
+  terminal grounds while leaving the chrome readable.
+- **Typography** — terminal and interface font families (the terminal list is
+  filtered to likely monospace families, with a toggle to show every installed
+  one), sizes, line height, and ligatures.
+- **Terminal** — cursor shape (block, bar, underline) and scrollback depth.
+
+The file is plain JSON and can be edited by hand; unknown or missing keys fall
+back to defaults.
 
 ## Running it
 
@@ -61,6 +84,7 @@ X11 development packages.
 | `⌘C` / `⌘V` | Copy selection / paste |
 | `⌘K` | Clear |
 | `⌘=` / `⌘-` / `⌘0` | Font size |
+| `⌘,` | Settings (`esc` closes) |
 
 Everything else goes to the shell untouched, including bare `ctrl` chords.
 
@@ -68,16 +92,18 @@ Everything else goes to the shell untouched, including bare `ctrl` chords.
 
 ```
 crates/botttle
-├── main.rs        window setup and app wiring
-├── workspace.rs   root view: tab strip, status bar, actions
-├── pane.rs        the pane tree (split, close, collapse, render)
-├── actions.rs     actions and their default key bindings
-├── theme.rs       colors, fonts, sizing — a gpui global
+├── main.rs          window setup and app wiring
+├── workspace.rs     root view: tab strip, status bar, actions
+├── pane.rs          the pane tree (split, close, collapse, render)
+├── actions.rs       actions and their default key bindings
+├── settings.rs      user settings, persisted as JSON
+├── settings_view.rs the settings screen
+├── theme/           the resolved look: palettes, fonts, sizing
 └── terminal/
-    ├── mod.rs     PTY + emulator, and the bridge to the main thread
-    ├── view.rs    grid rendering, keyboard, mouse, selection
-    ├── keys.rs    keystrokes to terminal byte sequences
-    └── color.rs   ANSI colors to gpui colors
+    ├── mod.rs       PTY + emulator, and the bridge to the main thread
+    ├── view.rs      grid rendering, keyboard, mouse, selection
+    ├── keys.rs      keystrokes to terminal byte sequences
+    └── color.rs     ANSI colors to gpui colors
 ```
 
 ## License

@@ -19,11 +19,13 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
 use gpui::{
     canvas, div, font, prelude::*, px, App, Bounds, ClipboardItem, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, FontStyle, FontWeight, HighlightStyle, KeyDownEvent, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render, ScrollDelta,
-    ScrollWheelEvent, SharedString, StrikethroughStyle, StyledText, Task, UnderlineStyle, Window,
+    FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight, HighlightStyle, KeyDownEvent,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render,
+    ScrollDelta, ScrollWheelEvent, SharedString, StrikethroughStyle, StyledText, Task,
+    UnderlineStyle, Window,
 };
 
+use crate::settings::{CursorShape as CursorShapeSetting, Settings};
 use crate::terminal::color::{self, resolve};
 use crate::terminal::keys;
 use crate::terminal::{Terminal, TerminalSize};
@@ -56,7 +58,9 @@ impl TerminalView {
     pub fn spawn(working_directory: Option<PathBuf>, cx: &mut App) -> Result<Entity<Self>> {
         // The real geometry arrives on the first paint; this is just enough for
         // the shell to start up with a sane window size.
-        let (terminal, events) = Terminal::new(TerminalSize::default(), working_directory)?;
+        let scrollback = cx.global::<Settings>().scrollback_lines.max(100);
+        let (terminal, events) =
+            Terminal::new(TerminalSize::default(), working_directory, scrollback)?;
         Ok(cx.new(|cx| Self::new(terminal, events, cx)))
     }
 
@@ -301,8 +305,10 @@ impl TerminalView {
         }
     }
 
-    fn build_rows(&mut self, theme: &Theme) -> Vec<Row> {
-        let (rows, display_offset) = {
+    /// Lays out the visible grid. The cursor is drawn into the text only when a
+    /// focused pane uses a block cursor; other shapes are painted as an overlay.
+    fn build_grid(&mut self, theme: &Theme, focused: bool, shape: CursorShapeSetting) -> Grid {
+        let (rows, cursor, display_offset) = {
             let term = self.terminal.lock();
             let columns = term.columns();
             let screen_lines = term.screen_lines();
@@ -348,10 +354,10 @@ impl TerminalView {
                 if selection.is_some_and(|range| range.contains(indexed.point)) {
                     background = theme.selection;
                 }
-                if cursor_visible
+                let is_cursor_cell = cursor_visible
                     && row_index == cursor_row
-                    && indexed.point.column.0 == cursor_column
-                {
+                    && indexed.point.column.0 == cursor_column;
+                if is_cursor_cell && focused && shape == CursorShapeSetting::Block {
                     background = theme.cursor;
                     foreground = theme.terminal_background;
                 }
@@ -384,11 +390,62 @@ impl TerminalView {
                 rows[row_index as usize].push(cell.c, style);
             }
 
-            (rows, display_offset)
+            let cursor = (cursor_visible
+                && cursor_row >= 0
+                && (cursor_row as usize) < screen_lines
+                && cursor_column < columns)
+                .then_some(CursorPlacement {
+                    row: cursor_row as usize,
+                    column: cursor_column,
+                });
+
+            (rows, cursor, display_offset)
         };
 
         self.display_offset = display_offset.max(0) as usize;
-        rows.into_iter().map(RowBuilder::finish).collect()
+        Grid {
+            rows: rows.into_iter().map(RowBuilder::finish).collect(),
+            cursor,
+        }
+    }
+
+    /// The cursor drawn on top of the text, for every case the block-in-text
+    /// path doesn't cover: bar and underline shapes, and unfocused panes.
+    fn render_cursor(
+        &self,
+        placement: CursorPlacement,
+        theme: &Theme,
+        focused: bool,
+        shape: CursorShapeSetting,
+        cell_width: Pixels,
+        line_height: Pixels,
+    ) -> Option<gpui::Div> {
+        if focused && shape == CursorShapeSetting::Block {
+            return None;
+        }
+
+        let left = px(f32::from(cell_width) * placement.column as f32);
+        let top = px(f32::from(line_height) * placement.row as f32);
+        let cursor = div().absolute().left(left).top(top);
+
+        Some(if !focused {
+            // A hollow box: the pane is still where it was, it just isn't listening.
+            cursor
+                .w(cell_width)
+                .h(line_height)
+                .border_1()
+                .border_color(theme.cursor.opacity(0.7))
+        } else {
+            match shape {
+                CursorShapeSetting::Bar => cursor.w(px(2.0)).h(line_height).bg(theme.cursor),
+                CursorShapeSetting::Underline => cursor
+                    .top(px(f32::from(top) + f32::from(line_height) - 2.0))
+                    .w(cell_width)
+                    .h(px(2.0))
+                    .bg(theme.cursor),
+                CursorShapeSetting::Block => cursor.w(cell_width).h(line_height).bg(theme.cursor),
+            }
+        })
     }
 }
 
@@ -403,6 +460,9 @@ impl Focusable for TerminalView {
 impl Render for TerminalView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.global::<Theme>().clone();
+        let cursor_shape = cx.global::<Settings>().cursor_shape;
+        let focused = self.focus_handle.is_focused(window);
+
         let font_size = theme.font_size;
         let line_height = theme.line_height();
         let font_id = window
@@ -413,10 +473,20 @@ impl Render for TerminalView {
             .em_advance(font_id, font_size)
             .unwrap_or(px(8.0));
 
-        let rows = self.build_rows(&theme);
+        let grid = self.build_grid(&theme, focused, cursor_shape);
+        let cursor = grid.cursor.and_then(|placement| {
+            self.render_cursor(
+                placement,
+                &theme,
+                focused,
+                cursor_shape,
+                cell_width,
+                line_height,
+            )
+        });
         let entity = cx.entity().downgrade();
 
-        div()
+        let mut root = div()
             .key_context("Terminal")
             .track_focus(&self.focus_handle)
             .size_full()
@@ -430,33 +500,54 @@ impl Render for TerminalView {
             .on_scroll_wheel(cx.listener(Self::on_scroll_wheel))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
-            .child(
-                div()
-                    .relative()
-                    .size_full()
-                    .overflow_hidden()
-                    .child(
-                        canvas(
-                            move |bounds, _, cx| {
-                                entity
-                                    .update(cx, |view, cx| {
-                                        view.measured(bounds, cell_width, line_height, cx)
-                                    })
-                                    .ok();
-                            },
-                            |_, _, _, _| {},
-                        )
-                        .absolute()
-                        .size_full(),
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up));
+
+        if !theme.ligatures {
+            root.text_style()
+                .get_or_insert_with(Default::default)
+                .font_features = Some(FontFeatures::disable_ligatures());
+        }
+
+        root.child(
+            div()
+                .relative()
+                .size_full()
+                .overflow_hidden()
+                .child(
+                    canvas(
+                        move |bounds, _, cx| {
+                            entity
+                                .update(cx, |view, cx| {
+                                    view.measured(bounds, cell_width, line_height, cx)
+                                })
+                                .ok();
+                        },
+                        |_, _, _, _| {},
                     )
-                    .children(rows.into_iter().map(|row| {
-                        div()
-                            .h(line_height)
-                            .child(StyledText::new(row.text).with_highlights(row.highlights))
-                    })),
-            )
+                    .absolute()
+                    .size_full(),
+                )
+                .children(grid.rows.into_iter().map(|row| {
+                    div()
+                        .h(line_height)
+                        .child(StyledText::new(row.text).with_highlights(row.highlights))
+                }))
+                .children(cursor),
+        )
     }
+}
+
+/// Where the cursor sits in the visible grid.
+#[derive(Clone, Copy)]
+struct CursorPlacement {
+    row: usize,
+    column: usize,
+}
+
+/// A laid-out frame of the terminal.
+struct Grid {
+    rows: Vec<Row>,
+    cursor: Option<CursorPlacement>,
 }
 
 /// One rendered row: the text plus the styles that apply to byte ranges of it.
