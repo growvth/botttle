@@ -27,6 +27,7 @@ use gpui::{
 
 use crate::settings::{CursorShape as CursorShapeSetting, Settings};
 use crate::terminal::color::{self, resolve};
+use crate::terminal::cwd;
 use crate::terminal::image_paste;
 use crate::terminal::keys;
 use crate::terminal::{Terminal, TerminalSize};
@@ -59,6 +60,7 @@ impl TerminalView {
     pub fn spawn(working_directory: Option<PathBuf>, cx: &mut App) -> Result<Entity<Self>> {
         // The real geometry arrives on the first paint; this is just enough for
         // the shell to start up with a sane window size.
+        let working_directory = working_directory.or_else(cwd::default_directory);
         let scrollback = cx.global::<Settings>().scrollback_lines.max(100);
         let (terminal, events) =
             Terminal::new(TerminalSize::default(), working_directory, scrollback)?;
@@ -101,6 +103,10 @@ impl TerminalView {
 
     pub fn has_exited(&self) -> bool {
         self.terminal.exited
+    }
+
+    pub fn working_directory(&self) -> Option<PathBuf> {
+        self.terminal.working_directory()
     }
 
     pub fn copy(&mut self, cx: &mut Context<Self>) {

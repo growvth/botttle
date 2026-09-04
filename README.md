@@ -30,6 +30,10 @@ Early. What works today:
 - **Tabs**, each holding its own pane layout.
 - **Splittable panes** — split right or down, any depth; splitting along an axis a
   pane already lives on adds a sibling instead of nesting.
+- New tabs and splits open in the **directory the current pane is in**, following
+  the pty's foreground process group. A pane with nowhere to inherit from starts
+  in the launch directory, or home when that is `/` — which is what a launch from
+  the dock gives you.
 - Mouse selection (click, double-click for words, triple-click for lines), copy
   and paste, scrollback via the wheel, live font resizing.
 - **Image paste for coding CLIs** — `ctrl-v` with an image on the clipboard writes

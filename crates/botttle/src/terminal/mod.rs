@@ -4,6 +4,7 @@
 //! [`Terminal`] owns no UI. Everything that draws lives in [`crate::terminal::view`].
 
 pub mod color;
+pub mod cwd;
 pub mod image_paste;
 pub mod keys;
 pub mod view;
@@ -112,6 +113,9 @@ pub struct Terminal {
     term: Arc<FairMutex<Term<EventProxy>>>,
     notifier: Notifier,
     size: TerminalSize,
+    /// A duplicate of the pty controller, used only to ask which process group
+    /// is in the foreground.
+    master: Option<std::os::fd::OwnedFd>,
     /// Set from OSC 0/2; `None` means "use the default label".
     pub title: Option<String>,
     /// True once the child process is gone. The pane stays open so output can be read.
@@ -151,6 +155,9 @@ impl Terminal {
             ..Default::default()
         };
         let pty = tty::new(&pty_options, size.into(), 0).context("failed to open a pty")?;
+        // Our own handle on the pty, so a new pane can ask this one where its
+        // shell is. Duplicated because the pty itself moves into the IO thread.
+        let master = cwd::duplicate_master(pty.file());
 
         let event_loop = EventLoop::new(term.clone(), proxy, pty, false, false)
             .context("failed to start the pty event loop")?;
@@ -164,6 +171,7 @@ impl Terminal {
                 term,
                 notifier,
                 size,
+                master,
                 title: None,
                 exited: false,
             },
@@ -173,6 +181,19 @@ impl Terminal {
 
     pub fn size(&self) -> TerminalSize {
         self.size
+    }
+
+    /// Where this pane's shell currently is, for new panes to start from.
+    ///
+    /// This follows the pty's foreground process group rather than the child we
+    /// spawned: on macOS that child is a root-owned `login`, and the shell whose
+    /// directory we want is its child.
+    pub fn working_directory(&self) -> Option<std::path::PathBuf> {
+        if self.exited {
+            return None;
+        }
+        let pid = cwd::foreground_process(self.master.as_ref()?)?;
+        cwd::of_process(pid)
     }
 
     /// Sends bytes to the child process.

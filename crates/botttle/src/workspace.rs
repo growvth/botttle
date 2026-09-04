@@ -91,7 +91,13 @@ impl Workspace {
     }
 
     fn spawn_pane(&mut self, cx: &mut Context<Self>) -> Option<Entity<TerminalView>> {
-        let working_directory = std::env::current_dir().ok();
+        // A new pane opens where the current one is, the way a new tab in any
+        // terminal does. Falling back to the launch directory covers the first
+        // pane, and a GUI launch (where that is `/`) falls back to home.
+        let working_directory = self
+            .active_pane()
+            .and_then(|pane| pane.read(cx).working_directory());
+
         match TerminalView::spawn(working_directory, cx) {
             Ok(pane) => {
                 self.status = None;
