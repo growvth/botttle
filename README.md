@@ -32,6 +32,9 @@ Early. What works today:
   pane already lives on adds a sibling instead of nesting.
 - Mouse selection (click, double-click for words, triple-click for lines), copy
   and paste, scrollback via the wheel, live font resizing.
+- **Image paste for coding CLIs** — `ctrl-v` with an image on the clipboard writes
+  it to a file and types the path, which is how Claude Code and Codex take
+  images. With no image on the clipboard, `ctrl-v` reaches the program unchanged.
 - A focused pane is marked by its border, so you can see where input will land.
 - A titlebar of its own, and a tab bar that scrolls horizontally once tabs fill it
   (the active tab is scrolled into view when you switch with the keyboard).
@@ -57,7 +60,8 @@ straight to `~/.config/botttle/settings.json`:
 - **Typography** — terminal and interface font families (the terminal list is
   filtered to likely monospace families, with a toggle to show every installed
   one), sizes, line height, and ligatures.
-- **Terminal** — cursor shape (block, bar, underline) and scrollback depth.
+- **Terminal** — cursor shape (block, bar, underline), image paste, and
+  scrollback depth.
 
 The file is plain JSON and can be edited by hand; unknown or missing keys fall
 back to defaults.
@@ -83,7 +87,8 @@ X11 development packages.
 | `⌘D` / `⌘⇧D` | Split right / split down |
 | `⌘]` / `⌘[` | Focus next / previous pane |
 | `⌘⇧]` / `⌘⇧[` | Next / previous tab |
-| `⌘C` / `⌘V` | Copy selection / paste |
+| `⌘C` / `⌘V` | Copy selection / paste (image if the clipboard holds one) |
+| `ctrl-V` | Paste a clipboard image as a file path |
 | `⌘K` | Clear |
 | `⌘=` / `⌘-` / `⌘0` | Font size |
 | `⌘,` | Settings (`esc` closes) |
@@ -105,6 +110,7 @@ crates/botttle
     ├── mod.rs       PTY + emulator, and the bridge to the main thread
     ├── view.rs      grid rendering, keyboard, mouse, selection
     ├── keys.rs      keystrokes to terminal byte sequences
+    ├── image_paste.rs clipboard images to files on disk
     └── color.rs     ANSI colors to gpui colors
 ```
 

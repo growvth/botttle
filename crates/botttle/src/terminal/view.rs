@@ -18,15 +18,16 @@ use anyhow::Result;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
 use gpui::{
-    canvas, div, font, prelude::*, px, App, Bounds, ClipboardItem, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight, HighlightStyle, KeyDownEvent,
-    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render,
-    ScrollDelta, ScrollWheelEvent, SharedString, StrikethroughStyle, StyledText, Task,
-    UnderlineStyle, Window,
+    canvas, div, font, prelude::*, px, App, Bounds, ClipboardEntry, ClipboardItem, Context, Entity,
+    EventEmitter, FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight, HighlightStyle,
+    Image, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels,
+    Point as GpuiPoint, Render, ScrollDelta, ScrollWheelEvent, SharedString, StrikethroughStyle,
+    StyledText, Task, UnderlineStyle, Window,
 };
 
 use crate::settings::{CursorShape as CursorShapeSetting, Settings};
 use crate::terminal::color::{self, resolve};
+use crate::terminal::image_paste;
 use crate::terminal::keys;
 use crate::terminal::{Terminal, TerminalSize};
 use crate::theme::Theme;
@@ -111,9 +112,42 @@ impl TerminalView {
     }
 
     pub fn paste(&mut self, cx: &mut Context<Self>) {
+        if self.paste_image(cx) {
+            return;
+        }
+
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
             return;
         };
+        self.paste_text(&text, cx);
+    }
+
+    /// Writes a clipboard image to a file and types its path, the way dropping a
+    /// file onto a terminal does. Returns false when there is no image to paste,
+    /// so callers can fall back to their normal behaviour.
+    pub fn paste_image(&mut self, cx: &mut Context<Self>) -> bool {
+        if !cx.global::<Settings>().paste_images {
+            return false;
+        }
+        let Some(image) = cx.read_from_clipboard().and_then(clipboard_image) else {
+            return false;
+        };
+
+        match image_paste::write(&image, std::time::SystemTime::now()) {
+            Ok(path) => {
+                // A trailing space keeps the prompt ready for the rest of the message.
+                self.paste_text(&format!("{} ", image_paste::quote(&path)), cx);
+                true
+            }
+            Err(error) => {
+                eprintln!("botttle: could not paste image: {error:#}");
+                false
+            }
+        }
+    }
+
+    /// Sends text to the child, bracketed when the program asked for it.
+    fn paste_text(&mut self, text: &str, cx: &mut Context<Self>) {
         let bracketed = self
             .terminal
             .lock()
@@ -186,6 +220,14 @@ impl TerminalView {
     }
 
     fn on_key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        // Coding CLIs take images as file paths, and ctrl-v is the chord they
+        // document for it. With no image on the clipboard this falls through, so
+        // ctrl-v still reaches readline as quoted-insert.
+        if is_ctrl_v(&event.keystroke) && self.paste_image(cx) {
+            cx.stop_propagation();
+            return;
+        }
+
         let mode = *self.terminal.lock().mode();
         let Some(bytes) = keys::to_bytes(&event.keystroke, mode) else {
             return;
@@ -595,4 +637,17 @@ impl RowBuilder {
             highlights: self.highlights,
         }
     }
+}
+
+/// Picks the image out of a clipboard item, if it carries one.
+fn clipboard_image(item: gpui::ClipboardItem) -> Option<Image> {
+    item.into_entries().find_map(|entry| match entry {
+        ClipboardEntry::Image(image) => Some(image),
+        ClipboardEntry::String(_) => None,
+    })
+}
+
+fn is_ctrl_v(keystroke: &gpui::Keystroke) -> bool {
+    let modifiers = keystroke.modifiers;
+    keystroke.key == "v" && modifiers.control && !modifiers.platform && !modifiers.alt
 }

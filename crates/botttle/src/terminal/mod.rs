@@ -4,6 +4,7 @@
 //! [`Terminal`] owns no UI. Everything that draws lives in [`crate::terminal::view`].
 
 pub mod color;
+pub mod image_paste;
 pub mod keys;
 pub mod view;
 

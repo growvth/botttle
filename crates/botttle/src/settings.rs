@@ -56,6 +56,9 @@ pub struct Settings {
     pub cursor_shape: CursorShape,
     /// Applies to panes opened from now on.
     pub scrollback_lines: usize,
+    /// Paste an image from the clipboard as a file path, the way dropping a file
+    /// onto a terminal works. Turn off to send ctrl-v straight to the program.
+    pub paste_images: bool,
 }
 
 impl Global for Settings {}
@@ -73,6 +76,7 @@ impl Default for Settings {
             background: None,
             cursor_shape: CursorShape::Block,
             scrollback_lines: DEFAULT_SCROLLBACK,
+            paste_images: true,
         }
     }
 }

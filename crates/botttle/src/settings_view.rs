@@ -372,6 +372,26 @@ impl SettingsView {
                 )
             })))
             .child(section_header(
+                "Image paste",
+                "Ctrl-V writes a clipboard image to a file and types its path, which is how Claude Code and Codex take images",
+                theme,
+            ))
+            .child(chip(
+                "chip-paste-images",
+                if settings.paste_images {
+                    "On"
+                } else {
+                    "Off — ctrl-v goes to the program"
+                },
+                settings.paste_images,
+                theme,
+                |_, _, cx| {
+                    Settings::update(cx, |settings| {
+                        settings.paste_images = !settings.paste_images
+                    })
+                },
+            ))
+            .child(section_header(
                 "Scrollback",
                 "Lines kept per pane. Applies to panes opened from now on.",
                 theme,
