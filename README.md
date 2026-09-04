@@ -75,12 +75,34 @@ cargo run --release
 Requires a recent stable Rust toolchain. On Linux, GPUI needs the usual Wayland or
 X11 development packages.
 
-On macOS, wrap it in an app bundle to get the icon in the dock and a real entry in
-Cmd-Tab:
+## Installing on macOS
 
 ```bash
-scripts/bundle-macos.sh && open target/botttle.app
+scripts/bundle-macos.sh --install
 ```
+
+Builds a release `botttle.app`, gives it the icon, signs it, and copies it to
+`/Applications`. The icon shows up in the dock and Cmd-Tab, and because the
+bundle identifier and signing identity are stable, permissions you grant it
+survive a rebuild.
+
+Signing picks the best identity in your keychain — a Developer ID Application
+certificate if you have one, otherwise an Apple Development certificate,
+otherwise an ad-hoc signature. All three run fine on the machine that built them.
+Pass `--sign "<identity>"` to choose, or `--no-sign` to skip it.
+
+Sharing the app with someone else additionally needs a Developer ID certificate
+and notarization, which Gatekeeper checks on any app that arrives from elsewhere:
+
+```bash
+scripts/bundle-macos.sh --sign "Developer ID Application: YOUR NAME (TEAMID)"
+ditto -c -k --keepParent target/botttle.app target/botttle.zip
+xcrun notarytool submit target/botttle.zip --keychain-profile <profile> --wait
+xcrun stapler staple target/botttle.app
+```
+
+(`<profile>` is a credential set you create once with
+`xcrun notarytool store-credentials`.)
 
 ## Keys
 

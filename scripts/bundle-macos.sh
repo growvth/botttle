@@ -2,15 +2,34 @@
 # Wraps the binary in a macOS .app so it gets a dock icon, a name in Cmd-Tab,
 # and the logo instead of the generic terminal icon `cargo run` gives you.
 #
-#   scripts/bundle-macos.sh            # release build (default)
-#   scripts/bundle-macos.sh --debug    # reuse the existing debug build
+#   scripts/bundle-macos.sh                      # release build, signed automatically
+#   scripts/bundle-macos.sh --debug              # reuse the existing debug build
+#   scripts/bundle-macos.sh --sign "identity"    # sign with a specific identity
+#   scripts/bundle-macos.sh --no-sign            # leave it unsigned
+#   scripts/bundle-macos.sh --install            # also copy it to /Applications
 #
-# The bundle is written to target/botttle.app.
+# Signing picks the best identity in the keychain: a Developer ID Application
+# certificate if there is one (the only kind that can be notarized for other
+# people's machines), otherwise an Apple Development certificate, otherwise an
+# ad-hoc signature. All three are enough to run the app on this machine; only a
+# notarized Developer ID build runs cleanly on someone else's.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 profile="release"
-[ "${1:-}" = "--debug" ] && profile="debug"
+identity="auto"
+install=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --debug) profile="debug" ;;
+    --sign) identity="$2"; shift ;;
+    --no-sign) identity="" ;;
+    --install) install=true ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 app="$root/target/botttle.app"
 version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$root/Cargo.toml" | head -1)"
@@ -64,5 +83,35 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+if [ "$identity" = "auto" ]; then
+  names="$(security find-identity -v -p codesigning | sed -n 's/.*"\(.*\)".*/\1/p')"
+  identity="$(printf '%s\n' "$names" | grep -m1 'Developer ID Application' || true)"
+  [ -n "$identity" ] || identity="$(printf '%s\n' "$names" | grep -m1 'Apple Development' || true)"
+  [ -n "$identity" ] || identity="-"
+fi
+
+if [ -n "$identity" ]; then
+  # An ad-hoc signature has no certificate to timestamp against.
+  if [ "$identity" = "-" ]; then
+    timestamp="--timestamp=none"
+  else
+    timestamp="--timestamp"
+  fi
+  # The hardened runtime is what notarization will require later; nothing in a
+  # terminal needs the exceptions it turns off.
+  codesign --force --options runtime $timestamp --sign "$identity" "$app"
+  codesign --verify --strict --verbose=2 "$app"
+  echo "signed with: $identity"
+fi
+
 echo "built $app"
-echo "run it with:  open $app"
+
+if $install; then
+  destination="/Applications/botttle.app"
+  rm -rf "$destination"
+  cp -R "$app" "$destination"
+  echo "installed $destination"
+  echo "open it with:  open -a botttle"
+else
+  echo "run it with:   open $app"
+fi
