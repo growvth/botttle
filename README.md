@@ -1,170 +1,230 @@
 <p align="center">
-  <img src="./assets/logo.png" alt="botttle" width="112" />
+  <img src="./assets/logo.png" alt="botttle" width="128" />
 </p>
 
-<p align="center"><strong>botttle</strong></p>
+<h1 align="center">botttle</h1>
 
 <p align="center">
-  An agentic development environment — a terminal workspace with tabs and panes,
-  built in Rust on <a href="https://gpui.rs">GPUI</a>.
+  A GPU-accelerated terminal workspace — tabs, panes, and room for agents.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/built%20with-Rust-000000?logo=rust&logoColor=white" alt="Built with Rust" />
+  <img src="https://img.shields.io/badge/rendering-GPUI-7c8cf8" alt="Rendered with GPUI" />
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
 </p>
 
 ---
 
-## What this is
+## About
 
-botttle is a GPU-rendered terminal you can split and tab like an editor, built to
-grow into a place where agents work next to you rather than in a separate window.
+botttle is a terminal emulator that draws on the GPU. Every pane runs your login
+shell through a real PTY and a full ANSI emulator, and the entire window — grid,
+chrome, tab strip — is rendered by [GPUI](https://gpui.rs), the same engine
+behind [Zed](https://zed.dev).
 
-The terminal comes first, because everything an agent does in a development loop —
-running builds, reading logs, driving tools — already happens in one. The pane
-tree, tab model, and event plumbing are the parts that outlive the terminal.
+It is also a workspace. Panes split right and down to any depth, tabs hold their
+own layouts, and both are first-class rather than bolted on: a new pane starts in
+the directory the current one is in, the focused pane is marked so you can see
+where input lands, and the emulator's state — title, cursor, working directory —
+is available to the app around it.
 
-## Status
+That structure is the point. Everything an agent does in a development loop —
+running builds, reading logs, driving tools — already happens in a terminal, but
+a terminal treats all of it as one undifferentiated stream of bytes. botttle
+keeps the terminal's honesty — `ctrl-c`, `ctrl-d` and the rest reach the program
+untouched — while giving the surrounding workspace the structure
+that agent-driven work needs. The next step is a pane that is an agent session
+rather than a shell, sharing the same tree, tab, and working directory.
 
-Early. What works today:
+**Status:** early, and moving. It is used daily by its author on macOS. Linux
+should build — the platform-specific paths are there — but is untested.
 
-- Real PTYs — each pane runs your login shell through a full ANSI emulator
-  (`alacritty_terminal`), with 24-bit color, text attributes, and 10k lines of
-  scrollback.
-- **Tabs**, each holding its own pane layout.
-- **Splittable panes** — split right or down, any depth; splitting along an axis a
-  pane already lives on adds a sibling instead of nesting.
-- New tabs and splits open in the **directory the current pane is in**, following
-  the pty's foreground process group. A pane with nowhere to inherit from starts
-  in the launch directory, or home when that is `/` — which is what a launch from
-  the dock gives you.
-- Mouse selection (click, double-click for words, triple-click for lines), copy
-  and paste, scrollback via the wheel, live font resizing.
-- **Image paste for coding CLIs** — `ctrl-v` with an image on the clipboard writes
-  it to a file and types the path, which is how Claude Code and Codex take
-  images. With no image on the clipboard, `ctrl-v` reaches the program unchanged.
-- **Cmd-click opens what is under the pointer** — a URL, or a file or folder that
-  actually exists. Holding cmd underlines the target first, so you can see what a
-  click will open. Paths resolve against the pane's working directory, and a
-  `file.rs:42:9` position suffix opens the file.
-- **Shift-enter is a newline**, not a send: terminals have always sent the same
-  byte for both, so botttle sends `ESC CR` for shift-enter — the sequence Claude
-  Code's own `/terminal-setup` installs into other terminals.
-- A focused pane is marked by its border, so you can see where input will land.
-- A titlebar of its own, and a tab bar that scrolls horizontally once tabs fill it
-  (the active tab is scrolled into view when you switch with the keyboard).
-- **12 themes** — six families in light and dark — and a **settings screen**.
+## Features
+
+**Terminal**
+
+- Real PTYs, a full ANSI emulator ([`alacritty_terminal`](https://github.com/alacritty/alacritty)),
+  24-bit color, text attributes, and configurable scrollback.
+- Mouse selection — click, double-click for words, triple-click for lines — with
+  copy, paste, and wheel scrollback.
 - Window title tracking (OSC 0/2), clipboard escapes (OSC 52), and color queries.
+- Block, bar, and underline cursors; a hollow cursor in unfocused panes.
 
-Not there yet: IME composition, drag-to-resize splits, search, and the agent layer
-itself.
+**Workspace**
 
-## Themes
+- Tabs, each holding its own pane layout, in a bar that scrolls horizontally once
+  they fill it.
+- Splits to any depth. Splitting along an axis a pane already occupies adds a
+  sibling instead of nesting, so repeated splits stay flat.
+- New tabs and splits open in the current pane's working directory, read from the
+  PTY's foreground process group.
 
-Botttle, Gruvbox, One, Cursor, OpenCode, and VS Code, each in a light and a dark
-variant. Gruvbox, One, and VS Code use those projects' published terminal
-palettes; Cursor and OpenCode are approximations matched by eye.
+**Built for coding CLIs**
 
-## Settings
+- **`shift-enter` is a newline**, not a send. Terminals have always sent the same
+  byte for both, so botttle sends `ESC CR` — the sequence Claude Code's own
+  `/terminal-setup` installs into other terminals.
+- **`ctrl-v` pastes an image** by writing it to a file and typing the path, which
+  is how Claude Code and Codex take images. With no image on the clipboard,
+  `ctrl-v` reaches the program untouched.
+- **`⌘-click` opens a URL or a path.** Holding `⌘` underlines the target first.
+  Paths resolve against the pane's working directory, and a `file.rs:42:9`
+  position suffix opens the file.
 
-`⌘,` (or `ctrl+shift+,`) opens the settings screen, and every change is written
-straight to `~/.config/botttle/settings.json`:
+**Appearance**
 
-- **Appearance** — theme, and a background override that replaces the window and
-  terminal grounds while leaving the chrome readable.
-- **Typography** — terminal and interface font families (the terminal list is
-  filtered to likely monospace families, with a toggle to show every installed
-  one), sizes, line height, and ligatures.
-- **Terminal** — cursor shape (block, bar, underline), shift-enter behaviour,
-  image paste, and scrollback depth.
+- 12 themes — six families in light and dark — swapped live.
+- A settings screen for fonts, sizes, line height, ligatures, cursor, and
+  background, persisted as plain JSON.
 
-The file is plain JSON and can be edited by hand; unknown or missing keys fall
-back to defaults.
+Not there yet: IME composition, drag-to-resize splits, search, the kitty keyboard
+protocol, and the agent layer itself.
 
-## Running it
+## Installation
+
+### macOS
 
 ```bash
-cargo run --release
-```
-
-Requires a recent stable Rust toolchain. On Linux, GPUI needs the usual Wayland or
-X11 development packages.
-
-## Installing on macOS
-
-```bash
+git clone https://github.com/launchdoor-studio/botttle
+cd botttle
 scripts/bundle-macos.sh --install
 ```
 
-Builds a release `botttle.app`, gives it the icon, signs it, and copies it to
-`/Applications`. The icon shows up in the dock and Cmd-Tab, and because the
-bundle identifier and signing identity are stable, permissions you grant it
-survive a rebuild.
+This builds a release `botttle.app`, gives it the icon, signs it with the best
+identity in your keychain, and copies it to `/Applications`. Because the bundle
+identifier and signing identity are stable, permissions you grant it survive a
+rebuild.
 
-Signing picks the best identity in your keychain — a Developer ID Application
-certificate if you have one, otherwise an Apple Development certificate,
-otherwise an ad-hoc signature. All three run fine on the machine that built them.
-Pass `--sign "<identity>"` to choose, or `--no-sign` to skip it.
+Signing prefers a Developer ID Application certificate, then an Apple Development
+certificate, then an ad-hoc signature — all three run on the machine that built
+them. Pass `--sign "<identity>"` to choose one, or `--no-sign` to skip it.
 
-Sharing the app with someone else needs notarization too, which Gatekeeper checks
-on any app that arrives from elsewhere:
+To hand the app to someone else, Gatekeeper wants it notarized:
 
 ```bash
 scripts/bundle-macos.sh --notarize --install
 ```
 
-That signs with the Developer ID identity, submits the zip through
-[`asc`](https://github.com/rorkai/asc) using the App Store Connect key it already
-holds, staples the ticket, and prints the Gatekeeper verdict.
+That submits the signed zip through [`asc`](https://github.com/rorkai/asc) using
+the App Store Connect key already in your keychain, staples the ticket, and
+prints the Gatekeeper verdict. The Developer ID Application certificate itself
+has to be created once by hand at
+<https://developer.apple.com/account/resources/certificates/add> — the App Store
+Connect API refuses it with *"This operation can only be performed by the Account
+Holder."*
 
-The one part that can't be scripted is creating the Developer ID Application
-certificate itself: the App Store Connect API refuses it with *"This operation can
-only be performed by the Account Holder"*, so it has to be created once, by hand,
-at <https://developer.apple.com/account/resources/certificates/add>.
+### From source
 
-## Keys
+```bash
+cargo run --release
+```
+
+Needs a recent stable Rust toolchain. On Linux, GPUI also needs the usual Wayland
+or X11 development packages.
+
+## Keybindings
 
 `⌘` on macOS; `ctrl+shift` elsewhere.
 
 | Chord | Action |
 | --- | --- |
 | `⌘T` | New tab |
-| `⌘W` | Close pane (closes the tab with the last pane) |
+| `⌘W` | Close pane — closes the tab with the last pane |
 | `⌘⇧W` | Close tab |
 | `⌘D` / `⌘⇧D` | Split right / split down |
 | `⌘]` / `⌘[` | Focus next / previous pane |
 | `⌘⇧]` / `⌘⇧[` | Next / previous tab |
-| `⌘C` / `⌘V` | Copy selection / paste (image if the clipboard holds one) |
+| `ctrl-tab` / `ctrl-⇧-tab` | Next / previous tab |
+| `⌘C` / `⌘V` | Copy selection / paste — an image if the clipboard holds one |
 | `ctrl-V` | Paste a clipboard image as a file path |
-| `shift-enter` | Newline instead of send, in CLIs that take one |
+| `shift-enter` | Newline instead of send |
 | `⌘-click` | Open the URL or path under the pointer |
 | `⌘K` | Clear |
 | `⌘=` / `⌘-` / `⌘0` | Font size |
-| `⌘,` | Settings (`esc` closes) |
+| `⌘,` | Settings — `esc` closes |
 
-Everything else goes to the shell untouched, including bare `ctrl` chords.
+Apart from `ctrl-tab`, every other key reaches the program untouched — `ctrl-c`,
+`ctrl-d`, `ctrl-z` and friends included.
 
-## Layout
+## Configuration
+
+`⌘,` opens the settings screen; every change is written straight to
+`~/.config/botttle/settings.json`. The file is plain JSON and can be edited by
+hand — unknown and missing keys fall back to defaults.
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `theme` | string | `"Botttle Dark"` | Any name from [Themes](#themes) |
+| `terminal_font_family` | string \| null | `null` | `null` picks the best monospace font installed |
+| `terminal_font_size` | number | `13.0` | 6–40 |
+| `line_height` | number | `1.4` | Multiple of the font size, 1.0–2.5 |
+| `ligatures` | bool | `true` | Programming ligatures, where the font has them |
+| `ui_font_family` | string \| null | `null` | Tabs, status bar, settings |
+| `ui_font_size` | number | `12.0` | 8–24 |
+| `background` | string \| null | `null` | `"#rrggbb"` override for the window and terminal grounds |
+| `cursor_shape` | `"block"` \| `"bar"` \| `"underline"` | `"block"` | |
+| `scrollback_lines` | number | `10000` | Applies to panes opened afterwards |
+| `paste_images` | bool | `true` | `ctrl-v` writes a clipboard image to a file |
+| `shift_enter_newline` | bool | `true` | Send `ESC CR` for `shift-enter` |
+
+## Themes
+
+Botttle, Gruvbox, One, Cursor, OpenCode, and VS Code, each in a light and a dark
+variant — `"Gruvbox Dark"`, `"One Light"`, and so on. Gruvbox, One, and VS Code
+use those projects' published terminal palettes; Cursor and OpenCode are
+approximations matched by eye.
+
+A background override replaces the window and terminal grounds while leaving the
+chrome on the theme's own surfaces, so the tab strip stays readable.
+
+## Architecture
+
+The grid is drawn as one styled text element per row, with per-cell colors and
+attributes applied as text highlights, which keeps the terminal inside GPUI's
+normal layout and paint path rather than beside it. Emulation runs on its own
+thread — `alacritty_terminal` owns the PTY and the parser — and reaches the UI
+thread over a channel, so a program flooding stdout can't stall the window.
 
 ```
-crates/botttle
-├── main.rs          window setup and app wiring
-├── assets.rs        the logo, compiled into the binary
-├── workspace.rs     root view: titlebar, tab bar, status bar, actions
-├── pane.rs          the pane tree (split, close, collapse, render)
-├── actions.rs       actions and their default key bindings
-├── settings.rs      user settings, persisted as JSON
-├── settings_view.rs the settings screen
-├── theme/           the resolved look: palettes, fonts, sizing
+crates/botttle/src
+├── main.rs            window setup and app wiring
+├── workspace.rs       root view: titlebar, tab bar, status bar, actions
+├── pane.rs            the pane tree — split, close, collapse, render
+├── actions.rs         actions and their default key bindings
+├── settings.rs        user settings, persisted as JSON
+├── settings_view.rs   the settings screen
+├── assets.rs          the logo, compiled into the binary
+├── theme/             palettes, fonts, sizing — resolved into one global
 └── terminal/
-    ├── mod.rs       PTY + emulator, and the bridge to the main thread
-    ├── view.rs      grid rendering, keyboard, mouse, selection
-    ├── keys.rs      keystrokes to terminal byte sequences
+    ├── mod.rs         PTY + emulator, and the bridge to the main thread
+    ├── view.rs        grid rendering, keyboard, mouse, selection, links
+    ├── keys.rs        keystrokes to terminal byte sequences
+    ├── hyperlink.rs   finding the URL or path under the pointer
     ├── image_paste.rs clipboard images to files on disk
-    └── color.rs     ANSI colors to gpui colors
+    ├── cwd.rs         where a new pane starts
+    └── color.rs       ANSI colors to GPUI colors
 ```
 
-## Assets
+## Development
 
-`assets/logo.png` is the source image: the README header, and the app icon the
-bundle script slices into an `.icns`. A 256px copy is embedded in the binary
-(`crates/botttle/assets/logo-256.png`) and drawn in the titlebar.
+```bash
+cargo run                      # debug build
+cargo test                     # unit tests, plus an end-to-end pty test
+cargo clippy --all-targets
+scripts/bundle-macos.sh --debug   # a .app around the debug binary
+```
+
+The test suite covers key encoding, link detection, theme resolution, settings
+round-trips, and working-directory lookup, and includes an end-to-end check that
+a real shell's output reaches the grid we render from.
+
+## Acknowledgements
+
+botttle stands on [GPUI](https://gpui.rs) for rendering and windowing, and on
+[`alacritty_terminal`](https://github.com/alacritty/alacritty) — Alacritty's
+emulator, extracted as a library — for turning bytes into a grid.
 
 ## License
 
