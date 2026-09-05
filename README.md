@@ -220,6 +220,15 @@ The test suite covers key encoding, link detection, theme resolution, settings
 round-trips, and working-directory lookup, and includes an end-to-end check that
 a real shell's output reaches the grid we render from.
 
+## Website
+
+`site/index.html` is the project page — a single self-contained file with the
+logo and every asset inlined, so it can be served from anywhere:
+
+```bash
+python3 -m http.server --directory site
+```
+
 ## Acknowledgements
 
 botttle stands on [GPUI](https://gpui.rs) for rendering and windowing, and on
