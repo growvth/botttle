@@ -20,14 +20,15 @@ use futures::StreamExt;
 use gpui::{
     canvas, div, font, prelude::*, px, App, Bounds, ClipboardEntry, ClipboardItem, Context, Entity,
     EventEmitter, FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight, HighlightStyle,
-    Image, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels,
-    Point as GpuiPoint, Render, ScrollDelta, ScrollWheelEvent, SharedString, StrikethroughStyle,
-    StyledText, Task, UnderlineStyle, Window,
+    Image, KeyDownEvent, Modifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render, ScrollDelta,
+    ScrollWheelEvent, SharedString, StrikethroughStyle, StyledText, Task, UnderlineStyle, Window,
 };
 
 use crate::settings::{CursorShape as CursorShapeSetting, Settings};
 use crate::terminal::color::{self, resolve};
 use crate::terminal::cwd;
+use crate::terminal::hyperlink::{self, Target};
 use crate::terminal::image_paste;
 use crate::terminal::keys;
 use crate::terminal::{Terminal, TerminalSize};
@@ -51,6 +52,12 @@ pub struct TerminalView {
     /// The scrollback offset of the last painted frame, for the same reason.
     display_offset: usize,
     selecting: bool,
+    /// The link under the pointer while the command key is held, as the display
+    /// cells to underline plus what a click would open.
+    hovered_link: Option<HoveredLink>,
+    /// Where the pointer last was, so the underline can appear when the command
+    /// key goes down without the mouse moving.
+    last_mouse_position: Option<GpuiPoint<Pixels>>,
     _event_pump: Task<()>,
 }
 
@@ -89,6 +96,8 @@ impl TerminalView {
             content_bounds: Bounds::default(),
             display_offset: 0,
             selecting: false,
+            hovered_link: None,
+            last_mouse_position: None,
             _event_pump: event_pump,
         }
     }
@@ -273,6 +282,13 @@ impl TerminalView {
     ) {
         window.focus(&self.focus_handle);
 
+        // Cmd-click opens what is under the pointer instead of starting a
+        // selection, the way it does everywhere else on the platform.
+        if opens_link(event.modifiers) && self.open_link_at(event.position, cx) {
+            cx.stop_propagation();
+            return;
+        }
+
         let Some((point, side)) = self.grid_point(event.position) else {
             return;
         };
@@ -292,6 +308,9 @@ impl TerminalView {
     }
 
     fn on_mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
+        self.last_mouse_position = Some(event.position);
+        self.update_hovered_link(event.modifiers, cx);
+
         if !self.selecting {
             return;
         }
@@ -309,6 +328,138 @@ impl TerminalView {
 
     fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, _: &mut Context<Self>) {
         self.selecting = false;
+    }
+
+    fn on_modifiers_changed(
+        &mut self,
+        event: &ModifiersChangedEvent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.update_hovered_link(event.modifiers, cx);
+    }
+
+    /// Recomputes the underlined link. Cheap enough to run on every move: it
+    /// only touches the filesystem when the pointer changes cell.
+    fn update_hovered_link(&mut self, modifiers: Modifiers, cx: &mut Context<Self>) {
+        let found = if opens_link(modifiers) {
+            self.last_mouse_position
+                .and_then(|position| self.link_at(position))
+        } else {
+            None
+        };
+
+        let changed = match (&self.hovered_link, &found) {
+            (Some(current), Some(new)) => current.cells != new.cells,
+            (None, None) => false,
+            _ => true,
+        };
+        if changed {
+            self.hovered_link = found;
+            cx.notify();
+        }
+    }
+
+    fn open_link_at(&mut self, position: GpuiPoint<Pixels>, cx: &mut Context<Self>) -> bool {
+        let Some(link) = self.link_at(position) else {
+            return false;
+        };
+        open(link.target, cx);
+        self.hovered_link = None;
+        cx.notify();
+        true
+    }
+
+    /// The link under a window position, if there is one.
+    fn link_at(&self, position: GpuiPoint<Pixels>) -> Option<HoveredLink> {
+        let (row, column) = self.display_cell(position)?;
+        let line = self.logical_line(row)?;
+        let index = line.cells.iter().position(|cell| *cell == (row, column))?;
+
+        let working_directory = self.terminal.working_directory();
+        let detection = hyperlink::detect(
+            &line.text,
+            index,
+            working_directory.as_deref(),
+            cwd::home().as_deref(),
+        )?;
+
+        // Turn the character range back into cells, one contiguous span per row
+        // so a wrapped link underlines across both.
+        let mut cells: Vec<(usize, Range<usize>)> = Vec::new();
+        for (row, column) in &line.cells[detection.range] {
+            match cells.last_mut() {
+                Some((last_row, span)) if last_row == row && span.end == *column => {
+                    span.end = column + 1;
+                }
+                _ => cells.push((*row, *column..column + 1)),
+            }
+        }
+
+        Some(HoveredLink {
+            cells,
+            target: detection.target,
+        })
+    }
+
+    /// The display row and column a window position falls in.
+    fn display_cell(&self, position: GpuiPoint<Pixels>) -> Option<(usize, usize)> {
+        let size = self.terminal.size();
+        if !self.content_bounds.contains(&position) {
+            return None;
+        }
+
+        let relative_x = f32::from(position.x - self.content_bounds.origin.x);
+        let relative_y = f32::from(position.y - self.content_bounds.origin.y);
+        let column = (relative_x / f32::from(size.cell_width).max(1.0)).floor() as usize;
+        let row = (relative_y / f32::from(size.line_height).max(1.0)).floor() as usize;
+
+        (row < size.lines() && column < size.columns()).then_some((row, column))
+    }
+
+    /// The text a row belongs to, following the emulator's wrap markers so a
+    /// path broken across two rows is still one string.
+    fn logical_line(&self, row: usize) -> Option<LogicalLine> {
+        let term = self.terminal.lock();
+        let columns = term.columns();
+        let screen_lines = term.screen_lines();
+        if row >= screen_lines || columns == 0 {
+            return None;
+        }
+
+        let offset = self.display_offset as i32;
+        let wraps = |row: usize| -> bool {
+            let line = Line(row as i32 - offset);
+            term.grid()[line][Column(columns - 1)]
+                .flags
+                .contains(Flags::WRAPLINE)
+        };
+
+        let mut first = row;
+        while first > 0 && wraps(first - 1) {
+            first -= 1;
+        }
+        let mut last = row;
+        while last + 1 < screen_lines && wraps(last) {
+            last += 1;
+        }
+
+        let mut line = LogicalLine::default();
+        for row in first..=last {
+            for column in 0..columns {
+                let cell = &term.grid()[Line(row as i32 - offset)][Column(column)];
+                if cell
+                    .flags
+                    .intersects(Flags::WIDE_CHAR_SPACER | Flags::LEADING_WIDE_CHAR_SPACER)
+                {
+                    continue;
+                }
+                line.text.push(cell.c);
+                line.cells.push((row, column));
+            }
+        }
+
+        Some(line)
     }
 
     /// Maps a window position to a cell, plus which half of the cell it landed on.
@@ -357,6 +508,12 @@ impl TerminalView {
     /// Lays out the visible grid. The cursor is drawn into the text only when a
     /// focused pane uses a block cursor; other shapes are painted as an overlay.
     fn build_grid(&mut self, theme: &Theme, focused: bool, shape: CursorShapeSetting) -> Grid {
+        let link_cells = self
+            .hovered_link
+            .as_ref()
+            .map(|link| link.cells.clone())
+            .unwrap_or_default();
+
         let (rows, cursor, display_offset) = {
             let term = self.terminal.lock();
             let columns = term.columns();
@@ -411,6 +568,15 @@ impl TerminalView {
                     foreground = theme.terminal_background;
                 }
 
+                // The link under the pointer is drawn as one, so it is obvious
+                // what a click will open before the click happens.
+                let is_link = link_cells.iter().any(|(link_row, span)| {
+                    *link_row == row_index as usize && span.contains(&indexed.point.column.0)
+                });
+                if is_link {
+                    foreground = theme.accent;
+                }
+
                 let style = HighlightStyle {
                     color: Some(foreground),
                     background_color: (background != theme.terminal_background)
@@ -420,13 +586,13 @@ impl TerminalView {
                         .flags
                         .contains(Flags::ITALIC)
                         .then_some(FontStyle::Italic),
-                    underline: cell.flags.intersects(Flags::ALL_UNDERLINES).then(|| {
-                        UnderlineStyle {
+                    underline: (is_link || cell.flags.intersects(Flags::ALL_UNDERLINES)).then(
+                        || UnderlineStyle {
                             thickness: px(1.0),
                             color: Some(foreground),
-                            wavy: cell.flags.contains(Flags::UNDERCURL),
-                        }
-                    }),
+                            wavy: !is_link && cell.flags.contains(Flags::UNDERCURL),
+                        },
+                    ),
                     strikethrough: cell.flags.contains(Flags::STRIKEOUT).then(|| {
                         StrikethroughStyle {
                             thickness: px(1.0),
@@ -536,6 +702,9 @@ impl Render for TerminalView {
         let entity = cx.entity().downgrade();
 
         let mut root = div()
+            // Identified so it can track hover state, which is what clears the
+            // link underline when the pointer leaves the pane.
+            .id("terminal")
             .key_context("Terminal")
             .track_focus(&self.focus_handle)
             .size_full()
@@ -549,7 +718,19 @@ impl Render for TerminalView {
             .on_scroll_wheel(cx.listener(Self::on_scroll_wheel))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_move(cx.listener(Self::on_mouse_move))
-            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up));
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_modifiers_changed(cx.listener(Self::on_modifiers_changed))
+            // Leaving the pane with the command key still down would otherwise
+            // leave an underline behind in a pane the pointer has left.
+            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                if !hovered && this.hovered_link.take().is_some() {
+                    this.last_mouse_position = None;
+                    cx.notify();
+                }
+            }))
+            .when(self.hovered_link.is_some(), |element| {
+                element.cursor_pointer()
+            });
 
         if !theme.ligatures {
             root.text_style()
@@ -657,4 +838,48 @@ fn clipboard_image(item: gpui::ClipboardItem) -> Option<Image> {
 fn is_ctrl_v(keystroke: &gpui::Keystroke) -> bool {
     let modifiers = keystroke.modifiers;
     keystroke.key == "v" && modifiers.control && !modifiers.platform && !modifiers.alt
+}
+
+/// A link under the pointer: the cells to underline, and what a click opens.
+struct HoveredLink {
+    /// One contiguous column span per display row.
+    cells: Vec<(usize, Range<usize>)>,
+    target: Target,
+}
+
+/// A row's text together with the cell each character came from, so a detection
+/// made on the text can be drawn back onto the grid.
+#[derive(Default)]
+struct LogicalLine {
+    text: Vec<char>,
+    cells: Vec<(usize, usize)>,
+}
+
+/// Cmd on macOS, super elsewhere. Ctrl is deliberately not used: on macOS it is
+/// the system's secondary-click gesture, and in a terminal it belongs to the
+/// program anyway.
+fn opens_link(modifiers: Modifiers) -> bool {
+    modifiers.platform && !modifiers.control && !modifiers.alt
+}
+
+/// Hands a target to the system opener, off the main thread so the window does
+/// not stall while Finder or a browser starts.
+fn open(target: Target, cx: &mut App) {
+    let argument = match target {
+        Target::Url(url) => url,
+        Target::Path(path) => path.display().to_string(),
+    };
+
+    cx.background_executor()
+        .spawn(async move {
+            let opener = if cfg!(target_os = "macos") {
+                "open"
+            } else {
+                "xdg-open"
+            };
+            if let Err(error) = std::process::Command::new(opener).arg(&argument).status() {
+                eprintln!("botttle: could not open {argument}: {error}");
+            }
+        })
+        .detach();
 }

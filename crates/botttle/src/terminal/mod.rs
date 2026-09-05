@@ -5,6 +5,7 @@
 
 pub mod color;
 pub mod cwd;
+pub mod hyperlink;
 pub mod image_paste;
 pub mod keys;
 pub mod view;

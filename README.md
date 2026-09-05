@@ -39,6 +39,10 @@ Early. What works today:
 - **Image paste for coding CLIs** — `ctrl-v` with an image on the clipboard writes
   it to a file and types the path, which is how Claude Code and Codex take
   images. With no image on the clipboard, `ctrl-v` reaches the program unchanged.
+- **Cmd-click opens what is under the pointer** — a URL, or a file or folder that
+  actually exists. Holding cmd underlines the target first, so you can see what a
+  click will open. Paths resolve against the pane's working directory, and a
+  `file.rs:42:9` position suffix opens the file.
 - **Shift-enter is a newline**, not a send: terminals have always sent the same
   byte for both, so botttle sends `ESC CR` for shift-enter — the sequence Claude
   Code's own `/terminal-setup` installs into other terminals.
@@ -129,6 +133,7 @@ at <https://developer.apple.com/account/resources/certificates/add>.
 | `⌘C` / `⌘V` | Copy selection / paste (image if the clipboard holds one) |
 | `ctrl-V` | Paste a clipboard image as a file path |
 | `shift-enter` | Newline instead of send, in CLIs that take one |
+| `⌘-click` | Open the URL or path under the pointer |
 | `⌘K` | Clear |
 | `⌘=` / `⌘-` / `⌘0` | Font size |
 | `⌘,` | Settings (`esc` closes) |
