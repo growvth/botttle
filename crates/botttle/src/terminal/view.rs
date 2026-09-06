@@ -19,9 +19,9 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
 use gpui::{
     canvas, div, font, prelude::*, px, App, Bounds, ClipboardEntry, ClipboardItem, Context, Entity,
-    EventEmitter, FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight, HighlightStyle,
-    Image, KeyDownEvent, Modifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render, ScrollDelta,
+    EventEmitter, ExternalPaths, FocusHandle, Focusable, FontFeatures, FontStyle, FontWeight,
+    HighlightStyle, Image, KeyDownEvent, Modifiers, ModifiersChangedEvent, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point as GpuiPoint, Render, ScrollDelta,
     ScrollWheelEvent, SharedString, StrikethroughStyle, StyledText, Task, UnderlineStyle, Window,
 };
 
@@ -31,6 +31,7 @@ use crate::terminal::cwd;
 use crate::terminal::hyperlink::{self, Target};
 use crate::terminal::image_paste;
 use crate::terminal::keys;
+use crate::terminal::shell;
 use crate::terminal::{Terminal, TerminalSize};
 use crate::theme::Theme;
 
@@ -151,7 +152,7 @@ impl TerminalView {
         match image_paste::write(&image, std::time::SystemTime::now()) {
             Ok(path) => {
                 // A trailing space keeps the prompt ready for the rest of the message.
-                self.paste_text(&format!("{} ", image_paste::quote(&path)), cx);
+                self.paste_text(&shell::quote_all([path.as_path()]), cx);
                 true
             }
             Err(error) => {
@@ -159,6 +160,29 @@ impl TerminalView {
                 false
             }
         }
+    }
+
+    /// Files dropped onto a pane arrive as their paths, which is what dropping
+    /// a file onto any terminal does — and how Claude Code and Codex take an
+    /// image that is already on disk.
+    fn on_drop_paths(
+        &mut self,
+        paths: &ExternalPaths,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.insert_paths(paths.paths(), window, cx);
+    }
+
+    /// Types paths at the prompt, quoted so a name with spaces stays one word.
+    fn insert_paths(&mut self, paths: &[PathBuf], window: &mut Window, cx: &mut Context<Self>) {
+        if paths.is_empty() {
+            return;
+        }
+
+        // A drop is a deliberate act on this pane, so give it the keyboard too.
+        window.focus(&self.focus_handle);
+        self.paste_text(&shell::quote_all(paths.iter().map(PathBuf::as_path)), cx);
     }
 
     /// Sends text to the child, bracketed when the program asked for it.
@@ -688,6 +712,8 @@ impl Render for TerminalView {
             .em_advance(font_id, font_size)
             .unwrap_or(px(8.0));
 
+        let drop_tint = theme.accent.opacity(0.12);
+        let theme_accent = theme.accent;
         let grid = self.build_grid(&theme, focused, cursor_shape);
         let cursor = grid.cursor.and_then(|placement| {
             self.render_cursor(
@@ -720,6 +746,12 @@ impl Render for TerminalView {
             .on_mouse_move(cx.listener(Self::on_mouse_move))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
             .on_modifiers_changed(cx.listener(Self::on_modifiers_changed))
+            .on_drop(cx.listener(Self::on_drop_paths))
+            // A tint while files are over the pane, so it is clear which one
+            // will receive them when there is more than one open.
+            .drag_over::<ExternalPaths>(move |style, _, _, _| {
+                style.bg(drop_tint).border_color(theme_accent)
+            })
             // Leaving the pane with the command key still down would otherwise
             // leave an underline behind in a pane the pointer has left.
             .on_hover(cx.listener(|this, hovered: &bool, _, cx| {

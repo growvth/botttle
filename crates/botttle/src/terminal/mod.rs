@@ -8,6 +8,7 @@ pub mod cwd;
 pub mod hyperlink;
 pub mod image_paste;
 pub mod keys;
+pub mod shell;
 pub mod view;
 
 use std::borrow::Cow;

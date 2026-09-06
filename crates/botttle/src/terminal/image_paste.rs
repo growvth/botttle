@@ -76,22 +76,6 @@ pub fn prune(directory: &Path, max_age: Duration, now: SystemTime) {
     }
 }
 
-/// Renders a path as a single shell word, so a directory with spaces or quotes
-/// in it still arrives at the prompt in one piece.
-pub fn quote(path: &Path) -> String {
-    let path = path.to_string_lossy();
-    let needs_quoting = path.is_empty()
-        || path
-            .chars()
-            .any(|c| !matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '.' | '_' | '-' | '~'));
-
-    if needs_quoting {
-        format!("'{}'", path.replace('\'', r"'\''"))
-    } else {
-        path.into_owned()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,15 +119,5 @@ mod tests {
         assert!(theirs.exists(), "files we did not write are left alone");
 
         fs::remove_dir_all(&directory).ok();
-    }
-
-    #[test]
-    fn paths_are_quoted_only_when_they_need_it() {
-        assert_eq!(quote(Path::new("/tmp/pasted-1.png")), "/tmp/pasted-1.png");
-        assert_eq!(
-            quote(Path::new("/tmp/my images/a.png")),
-            "'/tmp/my images/a.png'"
-        );
-        assert_eq!(quote(Path::new("/tmp/it's.png")), r"'/tmp/it'\''s.png'");
     }
 }

@@ -69,6 +69,8 @@ should build — the platform-specific paths are there — but is untested.
 - **`ctrl-v` pastes an image** by writing it to a file and typing the path, which
   is how Claude Code and Codex take images. With no image on the clipboard,
   `ctrl-v` reaches the program untouched.
+- **Drop a file on a pane** and its path is typed at the prompt, quoted — the
+  flow both CLIs document for attaching an image that is already on disk.
 - **`⌘-click` opens a URL or a path.** Holding `⌘` underlines the target first.
   Paths resolve against the pane's working directory, and a `file.rs:42:9`
   position suffix opens the file.
@@ -139,6 +141,7 @@ or X11 development packages.
 | `ctrl-tab` / `ctrl-⇧-tab` | Next / previous tab |
 | `⌘C` / `⌘V` | Copy selection / paste — an image if the clipboard holds one |
 | `ctrl-V` | Paste a clipboard image as a file path |
+| drag & drop | Type the dropped files' paths at the prompt |
 | `shift-enter` | Newline instead of send |
 | `⌘-click` | Open the URL or path under the pointer |
 | `⌘K` | Clear |
