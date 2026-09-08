@@ -174,14 +174,23 @@ impl Settings {
 
         // Transparency is a property of the window itself, not of anything we
         // paint, so every open window has to be told.
+        // Deferred on purpose. Settings usually change from a click inside the
+        // settings screen, which runs inside an update of the very window we
+        // need to touch — and a re-entrant window update fails rather than
+        // nesting, so applied inline this silently did nothing.
         let background = settings.window_background();
-        for window in cx.windows() {
-            window
-                .update(cx, |_, window, _| {
-                    window.set_background_appearance(background)
-                })
-                .ok();
-        }
+        cx.defer(move |cx| {
+            for window in cx.windows() {
+                if window
+                    .update(cx, |_, window, _| {
+                        window.set_background_appearance(background)
+                    })
+                    .is_err()
+                {
+                    eprintln!("botttle: could not apply window transparency");
+                }
+            }
+        });
         cx.refresh_windows();
     }
 }
