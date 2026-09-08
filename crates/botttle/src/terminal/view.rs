@@ -735,7 +735,7 @@ impl Render for TerminalView {
             .track_focus(&self.focus_handle)
             .size_full()
             .p_2()
-            .bg(theme.terminal_background)
+            .bg(theme.pane_background)
             .text_color(theme.terminal_foreground)
             .font_family(theme.font_family.clone())
             .text_size(font_size)

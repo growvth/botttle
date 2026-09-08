@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use gpui::{App, BorrowAppContext, Global, Hsla, Rgba};
+use gpui::{App, BorrowAppContext, Global, Hsla, Rgba, WindowBackgroundAppearance};
 use serde::{Deserialize, Serialize};
 
 use crate::theme;
@@ -15,6 +15,8 @@ pub const DEFAULT_FONT_SIZE: f32 = 13.0;
 pub const DEFAULT_UI_FONT_SIZE: f32 = 12.0;
 pub const DEFAULT_LINE_HEIGHT: f32 = 1.4;
 pub const DEFAULT_SCROLLBACK: usize = 10_000;
+/// Below this the text stops being readable over anything busy.
+pub const MIN_OPACITY: f32 = 0.3;
 
 /// How the cursor is drawn in a focused terminal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +55,10 @@ pub struct Settings {
     pub ui_font_size: f32,
     /// Overrides the theme's background, as `#rrggbb`.
     pub background: Option<String>,
+    /// How opaque the window is, 0.3 to 1.0. Below 1 the desktop shows through.
+    pub opacity: f32,
+    /// Blur whatever is behind the window. Only visible when `opacity` is below 1.
+    pub blur: bool,
     pub cursor_shape: CursorShape,
     /// Applies to panes opened from now on.
     pub scrollback_lines: usize,
@@ -77,6 +83,8 @@ impl Default for Settings {
             ui_font_family: None,
             ui_font_size: DEFAULT_UI_FONT_SIZE,
             background: None,
+            opacity: 1.0,
+            blur: false,
             cursor_shape: CursorShape::Block,
             scrollback_lines: DEFAULT_SCROLLBACK,
             paste_images: true,
@@ -130,6 +138,28 @@ impl Settings {
         Some(base.join("botttle").join("settings.json"))
     }
 
+    /// Clamped so the window can never be dragged into invisibility.
+    pub fn opacity(&self) -> f32 {
+        self.opacity.clamp(MIN_OPACITY, 1.0)
+    }
+
+    pub fn is_translucent(&self) -> bool {
+        self.opacity() < 0.999
+    }
+
+    /// What the platform is told to do behind the window. An opaque window gets
+    /// `Opaque` whatever the blur setting says, because there is nothing to see
+    /// through — and telling the compositor so saves it drawing what is behind.
+    pub fn window_background(&self) -> WindowBackgroundAppearance {
+        if !self.is_translucent() {
+            WindowBackgroundAppearance::Opaque
+        } else if self.blur {
+            WindowBackgroundAppearance::Blurred
+        } else {
+            WindowBackgroundAppearance::Transparent
+        }
+    }
+
     /// The background override, if it parses.
     pub fn background_color(&self) -> Option<Hsla> {
         self.background.as_deref().and_then(parse_hex)
@@ -141,6 +171,17 @@ impl Settings {
         let settings = cx.global::<Settings>().clone();
         settings.save();
         theme::apply(&settings, cx);
+
+        // Transparency is a property of the window itself, not of anything we
+        // paint, so every open window has to be told.
+        let background = settings.window_background();
+        for window in cx.windows() {
+            window
+                .update(cx, |_, window, _| {
+                    window.set_background_appearance(background)
+                })
+                .ok();
+        }
         cx.refresh_windows();
     }
 }
@@ -201,6 +242,56 @@ mod tests {
         let parsed: Settings = serde_json::from_str(&json).expect("parses");
         assert_eq!(parsed.theme, Settings::default().theme);
         assert_eq!(parsed.cursor_shape, CursorShape::Block);
+    }
+
+    #[test]
+    fn an_opaque_window_stays_opaque_whatever_blur_says() {
+        let settings = Settings {
+            opacity: 1.0,
+            blur: true,
+            ..Settings::default()
+        };
+        assert!(matches!(
+            settings.window_background(),
+            WindowBackgroundAppearance::Opaque
+        ));
+    }
+
+    #[test]
+    fn a_see_through_window_blurs_only_when_asked() {
+        let blurred = Settings {
+            opacity: 0.8,
+            blur: true,
+            ..Settings::default()
+        };
+        assert!(matches!(
+            blurred.window_background(),
+            WindowBackgroundAppearance::Blurred
+        ));
+
+        let plain = Settings {
+            blur: false,
+            ..blurred
+        };
+        assert!(matches!(
+            plain.window_background(),
+            WindowBackgroundAppearance::Transparent
+        ));
+    }
+
+    #[test]
+    fn opacity_cannot_be_dragged_into_invisibility() {
+        let settings = Settings {
+            opacity: 0.0,
+            ..Settings::default()
+        };
+        assert_eq!(settings.opacity(), MIN_OPACITY);
+
+        let settings = Settings {
+            opacity: 4.0,
+            ..Settings::default()
+        };
+        assert_eq!(settings.opacity(), 1.0);
     }
 
     #[test]

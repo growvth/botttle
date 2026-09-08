@@ -10,6 +10,7 @@ use gpui::{actions, App, KeyBinding};
 actions!(
     botttle,
     [
+        NewWindow,
         NewTab,
         CloseTab,
         NextTab,
@@ -43,6 +44,7 @@ pub fn init(cx: &mut App) {
     let context = Some(WORKSPACE_CONTEXT);
 
     let mut bindings = vec![
+        KeyBinding::new(&format!("{MOD}-n"), NewWindow, None),
         KeyBinding::new(&format!("{MOD}-t"), NewTab, context),
         KeyBinding::new(&format!("{MOD}-w"), ClosePane, context),
         KeyBinding::new(&format!("{MOD}-shift-w"), CloseTab, context),

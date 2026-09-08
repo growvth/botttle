@@ -87,7 +87,15 @@ pub struct Theme {
     pub accent: Hsla,
     pub danger: Hsla,
 
+    /// The grid's ground, always opaque: cells compare against it to decide
+    /// whether they need a background of their own.
     pub terminal_background: Hsla,
+    /// What a pane actually paints. Transparent while the window is see-through,
+    /// so the desktop shows through once rather than through two stacked layers.
+    pub pane_background: Hsla,
+    /// The window ground with no transparency, for surfaces that have to stay
+    /// readable whatever is behind the window.
+    pub opaque_background: Hsla,
     pub terminal_foreground: Hsla,
     pub cursor: Hsla,
     pub selection: Hsla,
@@ -132,6 +140,8 @@ impl Theme {
             accent: color(palette.accent),
             danger: color(palette.danger),
             terminal_background: color(palette.terminal_background),
+            pane_background: color(palette.terminal_background),
+            opaque_background: color(palette.background),
             terminal_foreground: color(palette.terminal_foreground),
             cursor: color(palette.cursor),
             selection: color(palette.selection),
@@ -149,6 +159,20 @@ impl Theme {
         if let Some(background) = settings.background_color() {
             theme.background = background;
             theme.terminal_background = background;
+        }
+        theme.opaque_background = theme.background;
+
+        // Transparency is applied last, to whatever ground we ended up with.
+        let opacity = settings.opacity();
+        if settings.is_translucent() {
+            // Chrome stays more solid than the grid: tab and status text has to
+            // hold up over whatever the desktop puts behind it.
+            let chrome = (opacity + 0.22).min(1.0);
+            theme.background = theme.background.alpha(opacity);
+            theme.surface = theme.surface.alpha(chrome);
+            theme.elevated = theme.elevated.alpha(chrome);
+            // The window ground already carries the alpha, so the pane adds none.
+            theme.pane_background = theme.terminal_background.alpha(0.0);
         }
 
         theme
@@ -344,6 +368,34 @@ mod tests {
         assert_eq!(theme.terminal_background, expected);
         // Chrome keeps the palette's own surface so the tab strip stays legible.
         assert_ne!(theme.surface, expected);
+    }
+
+    #[test]
+    fn a_see_through_window_paints_its_panes_transparent() {
+        let catalog = FontCatalog::new(vec!["Menlo".to_string()]);
+        let settings = Settings {
+            opacity: 0.7,
+            ..Settings::default()
+        };
+
+        let theme = Theme::resolve(&PALETTES[0], &settings, &catalog);
+        // The window ground carries the transparency; the pane adds none, so the
+        // desktop shows through one layer rather than two stacked ones.
+        assert_eq!(theme.pane_background.a, 0.0);
+        assert!((theme.background.a - 0.7).abs() < 0.001);
+        // Cells compare against an opaque ground, and the settings panel needs one.
+        assert_eq!(theme.terminal_background.a, 1.0);
+        assert_eq!(theme.opaque_background.a, 1.0);
+        // Chrome stays more solid than the grid.
+        assert!(theme.surface.a > theme.background.a);
+    }
+
+    #[test]
+    fn an_opaque_window_paints_the_palette_untouched() {
+        let catalog = FontCatalog::new(vec!["Menlo".to_string()]);
+        let theme = Theme::resolve(&PALETTES[0], &Settings::default(), &catalog);
+        assert_eq!(theme.background.a, 1.0);
+        assert_eq!(theme.pane_background, theme.terminal_background);
     }
 
     #[test]

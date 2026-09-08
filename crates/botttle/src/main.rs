@@ -14,51 +14,72 @@ mod terminal;
 mod theme;
 mod workspace;
 
+use anyhow::Result;
 use gpui::{
     point, px, size, App, AppContext, Application, Bounds, TitlebarOptions, WindowBounds,
-    WindowOptions,
+    WindowHandle, WindowOptions,
 };
 
+use crate::settings::Settings;
 use crate::workspace::Workspace;
 
 fn main() {
     // Sets TERM and COLORTERM for every shell we spawn.
     alacritty_terminal::tty::setup_env();
 
-    Application::new()
-        .with_assets(assets::Assets)
-        .run(|cx: &mut App| {
-            settings::init(cx);
-            theme::init(cx);
-            actions::init(cx);
+    let app = Application::new().with_assets(assets::Assets);
 
-            cx.on_action(|_: &actions::Quit, cx| cx.quit());
+    // Closing the last window leaves the app running, the way a mac app does.
+    // Without this, clicking the dock icon then has nothing to reopen and
+    // appears to do nothing at all.
+    app.on_reopen(|cx| {
+        if cx.windows().is_empty() {
+            open_window(cx).expect("failed to reopen a botttle window");
+        }
+    });
 
-            let bounds = Bounds::centered(None, size(px(1120.0), px(720.0)), cx);
-            let window = cx
-                .open_window(
-                    WindowOptions {
-                        window_bounds: Some(WindowBounds::Windowed(bounds)),
-                        titlebar: Some(TitlebarOptions {
-                            title: Some("botttle".into()),
-                            appears_transparent: true,
-                            // Centred in the 32px titlebar drawn by the workspace.
-                            traffic_light_position: Some(point(px(14.0), px(10.0))),
-                        }),
-                        window_min_size: Some(size(px(600.0), px(400.0))),
-                        app_id: Some("dev.botttle".to_string()),
-                        ..Default::default()
-                    },
-                    |window, cx| cx.new(|cx| Workspace::new(window, cx)),
-                )
-                .expect("failed to open the botttle window");
+    app.run(|cx: &mut App| {
+        settings::init(cx);
+        theme::init(cx);
+        actions::init(cx);
 
-            window
-                .update(cx, |workspace, window, cx| {
-                    workspace.focus_active_pane(window, cx);
-                })
-                .ok();
-
-            cx.activate(true);
+        cx.on_action(|_: &actions::Quit, cx| cx.quit());
+        cx.on_action(|_: &actions::NewWindow, cx| {
+            open_window(cx).expect("failed to open a botttle window");
         });
+
+        open_window(cx).expect("failed to open the botttle window");
+        cx.activate(true);
+    });
+}
+
+/// Opens a window onto a new workspace, and focuses its first pane.
+pub fn open_window(cx: &mut App) -> Result<WindowHandle<Workspace>> {
+    let bounds = Bounds::centered(None, size(px(1120.0), px(720.0)), cx);
+    let background = cx.global::<Settings>().window_background();
+
+    let window = cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            titlebar: Some(TitlebarOptions {
+                title: Some("botttle".into()),
+                appears_transparent: true,
+                // Centred in the 32px titlebar drawn by the workspace.
+                traffic_light_position: Some(point(px(14.0), px(10.0))),
+            }),
+            window_min_size: Some(size(px(600.0), px(400.0))),
+            window_background: background,
+            app_id: Some("dev.botttle".to_string()),
+            ..Default::default()
+        },
+        |window, cx| cx.new(|cx| Workspace::new(window, cx)),
+    )?;
+
+    window
+        .update(cx, |workspace, window, cx| {
+            workspace.focus_active_pane(window, cx);
+        })
+        .ok();
+
+    Ok(window)
 }

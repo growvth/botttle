@@ -204,8 +204,10 @@ impl Workspace {
         }
         self.tabs.remove(index);
 
+        // The last tab takes the window with it, but not the app: a mac app
+        // stays running with no windows, and the dock icon reopens one.
         if self.tabs.is_empty() {
-            cx.quit();
+            window.remove_window();
             return;
         }
 

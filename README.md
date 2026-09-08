@@ -78,6 +78,9 @@ should build — the platform-specific paths are there — but is untested.
 **Appearance**
 
 - 12 themes — six families in light and dark — swapped live.
+- **Transparency and blur.** Dial the window's opacity down and the desktop shows
+  through; turn on blur and macOS frosts what is behind it. Chrome stays more
+  solid than the grid so tabs and status text hold up over anything.
 - A settings screen for fonts, sizes, line height, ligatures, cursor, and
   background, persisted as plain JSON.
 
@@ -132,6 +135,7 @@ or X11 development packages.
 
 | Chord | Action |
 | --- | --- |
+| `⌘N` | New window |
 | `⌘T` | New tab |
 | `⌘W` | Close pane — closes the tab with the last pane |
 | `⌘⇧W` | Close tab |
@@ -167,6 +171,8 @@ hand — unknown and missing keys fall back to defaults.
 | `ui_font_family` | string \| null | `null` | Tabs, status bar, settings |
 | `ui_font_size` | number | `12.0` | 8–24 |
 | `background` | string \| null | `null` | `"#rrggbb"` override for the window and terminal grounds |
+| `opacity` | number | `1.0` | 0.3–1.0; below 1 the desktop shows through |
+| `blur` | bool | `false` | Frost what is behind the window; needs `opacity` below 1 |
 | `cursor_shape` | `"block"` \| `"bar"` \| `"underline"` | `"block"` | |
 | `scrollback_lines` | number | `10000` | Applies to panes opened afterwards |
 | `paste_images` | bool | `true` | `ctrl-v` writes a clipboard image to a file |

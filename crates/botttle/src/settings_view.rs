@@ -8,7 +8,7 @@ use gpui::{
     IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Window,
 };
 
-use crate::settings::{self, CursorShape, Settings};
+use crate::settings::{self, CursorShape, Settings, MIN_OPACITY};
 use crate::theme::{self, Appearance, FontCatalog, Theme};
 
 /// Height of the scrollable font pickers.
@@ -54,6 +54,7 @@ impl SettingsView {
     }
 
     fn render_appearance(&self, theme: &Theme, cx: &mut Context<Self>) -> impl IntoElement {
+        let settings = cx.global::<Settings>().clone();
         let current = theme.name.clone();
         let cards = theme::all().iter().map(|palette| {
             let name = palette.name;
@@ -114,7 +115,7 @@ impl SettingsView {
         });
 
         let background_options = background_choices(theme);
-        let current_background = cx.global::<Settings>().background.clone();
+        let current_background = settings.background.clone();
 
         div()
             .flex()
@@ -126,6 +127,49 @@ impl SettingsView {
                 theme,
             ))
             .child(div().flex().flex_wrap().gap_2().children(cards))
+            .child(section_header(
+                "Transparency",
+                "How much of the desktop shows through the window",
+                theme,
+            ))
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_4()
+                    .items_center()
+                    .child(stepper(
+                        "opacity",
+                        "Opacity",
+                        format!("{:.0}%", settings.opacity() * 100.0),
+                        theme,
+                        |cx| {
+                            Settings::update(cx, |settings| {
+                                settings.opacity = (settings.opacity() - 0.05).max(MIN_OPACITY)
+                            })
+                        },
+                        |cx| {
+                            Settings::update(cx, |settings| {
+                                settings.opacity = (settings.opacity() + 0.05).min(1.0)
+                            })
+                        },
+                    ))
+                    .child(chip(
+                        "chip-blur",
+                        "Blur behind",
+                        settings.blur,
+                        theme,
+                        |_, _, cx| Settings::update(cx, |settings| settings.blur = !settings.blur),
+                    ))
+                    .when(!settings.is_translucent(), |element| {
+                        element.child(
+                            div()
+                                .text_size(px(11.0))
+                                .text_color(theme.text_muted)
+                                .child("Blur applies once opacity is below 100%"),
+                        )
+                    }),
+            )
             .child(section_header(
                 "Background",
                 "Overrides the window and terminal background of the current theme",
@@ -489,7 +533,7 @@ impl Render for SettingsView {
                     .rounded(Theme::radius())
                     .border_1()
                     .border_color(theme.border)
-                    .bg(theme.background)
+                    .bg(theme.opaque_background)
                     .text_color(theme.text)
                     .text_size(theme.ui_font_size)
                     .font_family(theme.ui_font_family.clone())
